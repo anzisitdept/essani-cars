@@ -1,0 +1,409 @@
+"use client";
+import { useState, useEffect } from "react";
+import { doc, updateDoc, collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Pencil, X, Save, Car, Settings2, User, FileText, CreditCard, LayoutGrid } from "lucide-react";
+import { addToHistory } from "@/utils/vehicleHistory";
+import { useAuth } from "@/context/AuthContext";
+import { ClientSelector } from "@/features/registry/ClientSelector";
+
+interface EditVehicleModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  vehicle: any;
+}
+
+// Helper for fetching collections
+const useCollection = (collectionName: string) => {
+  const [data, setData] = useState<any[]>([]);
+  useEffect(() => {
+    const q = query(collection(db, collectionName), orderBy("name"));
+    const unsub = onSnapshot(q, (snap) => {
+      setData(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [collectionName]);
+  return data;
+};
+
+export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalProps) => {
+  const { user } = useAuth();
+  const [formData, setFormData] = useState<any>({});
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("identity");
+
+  // --- Fetch Config Data ---
+  const brands = useCollection("brands");
+  const colors = useCollection("settings_colors");
+  const fuelTypes = useCollection("settings_fuel");
+  const transmissions = useCollection("settings_transmission");
+  const bodyTypes = useCollection("settings_body");
+  const driveTypes = useCollection("settings_drive");
+
+  // Clients & Models
+  const [clients, setClients] = useState<any[]>([]);
+  const [models, setModels] = useState<any[]>([]);
+  const [availableVariants, setAvailableVariants] = useState<string[]>([]);
+
+  // Init Data
+  useEffect(() => {
+    if (!isOpen || !vehicle) return;
+    setFormData(vehicle);
+  }, [isOpen, vehicle]);
+
+  // Fetch Clients
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsub = onSnapshot(query(collection(db, "clients"), orderBy("name")), (snap) => {
+      setClients(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [isOpen]);
+
+  // Fetch Models based on selected Brand
+  useEffect(() => {
+    if (!formData.brandId) {
+      setModels([]);
+      return;
+    }
+    const q = query(collection(db, "models"), where("brandId", "==", formData.brandId));
+    const unsub = onSnapshot(q, (snap) => {
+      setModels(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [formData.brandId]);
+
+  // Update Variants when Model changes
+  useEffect(() => {
+    const selectedModel = models.find(m => m.name === formData.model);
+    setAvailableVariants(selectedModel?.variants || []);
+  }, [formData.model, models]);
+
+  if (!isOpen) return null;
+
+  // --- Handlers ---
+
+  const handleChange = (field: string, value: any) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const handleBrandChange = (brandId: string) => {
+    const brand = brands.find(b => b.id === brandId);
+    setFormData((prev: any) => ({
+      ...prev,
+      brandId,
+      brandName: brand?.name || "",
+      model: "", // Reset model
+      variant: "" // Reset variant
+    }));
+  };
+
+  const handleClientChange = (type: 'POSSESSION' | 'DOCS', clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    if (type === 'POSSESSION') {
+      setFormData((prev: any) => ({
+        ...prev,
+        ownerId: client.id,
+        ownerName: client.name,
+        ownerContact: client.phone
+      }));
+    } else {
+      setFormData((prev: any) => ({
+        ...prev,
+        registeredOwnerId: client.id,
+        registeredOwnerName: client.name,
+        registeredOwnerContact: client.phone
+      }));
+    }
+  };
+
+  const handleClearOwner = (type: 'POSSESSION' | 'DOCS') => {
+    if (type === 'POSSESSION') {
+      setFormData((prev: any) => ({
+        ...prev,
+        ownerId: null,
+        ownerName: "",
+        ownerContact: ""
+      }));
+    } else {
+      setFormData((prev: any) => ({
+        ...prev,
+        registeredOwnerId: null,
+        registeredOwnerName: "",
+        registeredOwnerContact: ""
+      }));
+    }
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      // Determine plate status based on switch
+      const finalPlateStatus = formData.platesApplied === false
+        ? "Not Applied"
+        : (formData.plateStatus === "Not Applied" ? "Applied" : formData.plateStatus);
+
+      await updateDoc(doc(db, "cars", vehicle.id), {
+        ...formData,
+        // Ensure numeric fields are numbers
+        year: Number(formData.year),
+        modelYear: Number(formData.modelYear) || Number(formData.year),
+        registrationYear: Number(formData.registrationYear) || null,
+        mileage: Number(formData.mileage) || 0,
+        // Apply plate status logic
+        plateStatus: finalPlateStatus
+      });
+
+      // Add to History
+      if (user) {
+        await addToHistory(
+          vehicle.id,
+          "Edited Vehicle",
+          "Updated vehicle details and specifications",
+          user.uid
+        );
+      }
+
+      onClose();
+    } catch (error) {
+      console.error(error);
+      alert("Failed to update vehicle record");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <Card className="w-full max-w-4xl bg-white max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="p-4 border-b flex justify-between items-center bg-slate-50 shrink-0">
+          <div className="flex items-center gap-2">
+            <Pencil size={18} className="text-blue-600" />
+            <h3 className="font-bold text-lg text-slate-800">Edit Vehicle Record</h3>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}><X size={18} /></Button>
+        </div>
+
+        {/* Content Wrapper */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="mb-6 grid w-full grid-cols-4 bg-slate-100 p-1">
+              <TabsTrigger value="identity" className="gap-2"><Car size={14} /> Identity</TabsTrigger>
+              <TabsTrigger value="specs" className="gap-2"><Settings2 size={14} /> Specs</TabsTrigger>
+              <TabsTrigger value="ownership" className="gap-2"><User size={14} /> Ownership</TabsTrigger>
+              <TabsTrigger value="settings" className="gap-2"><LayoutGrid size={14} /> Settings</TabsTrigger>
+            </TabsList>
+
+            {/* 1. Identity TAB */}
+            <TabsContent value="identity" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Brand</label>
+                  <Select value={formData.brandId} onValueChange={handleBrandChange}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Model</label>
+                  <Select value={formData.model} onValueChange={(val) => handleChange("model", val)} disabled={!formData.brandId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{models.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Variant</label>
+                  {availableVariants.length > 0 ? (
+                    <Select value={formData.variant} onValueChange={(val) => handleChange("variant", val)}>
+                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>{availableVariants.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
+                    </Select>
+                  ) : (
+                    <Input value={formData.variant || ""} onChange={e => handleChange("variant", e.target.value)} />
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Chassis No.</label>
+                  <Input value={formData.chassisNumber || ""} onChange={e => handleChange("chassisNumber", e.target.value)} className="font-mono uppercase" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Engine No.</label>
+                  <Input value={formData.engineNumber || ""} onChange={e => handleChange("engineNumber", e.target.value)} className="font-mono uppercase" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Registration No.</label>
+                  <Input value={formData.registrationNumber || ""} onChange={e => handleChange("registrationNumber", e.target.value)} className="font-mono uppercase" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">CPLC Counter</label>
+                  <Input value={formData.cplcCounter || ""} onChange={e => handleChange("cplcCounter", e.target.value)} className="font-mono uppercase" />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* 2. Specs TAB */}
+            <TabsContent value="specs" className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Fuel Type</label>
+                  <Select value={formData.fuelType} onValueChange={(v) => handleChange("fuelType", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{fuelTypes.map(f => <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Transmission</label>
+                  <Select value={formData.transmission} onValueChange={(v) => handleChange("transmission", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{transmissions.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Drive Type</label>
+                  <Select value={formData.driveType} onValueChange={(v) => handleChange("driveType", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{driveTypes.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Body Type</label>
+                  <Select value={formData.bodyType} onValueChange={(v) => handleChange("bodyType", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{bodyTypes.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Color</label>
+                  <Select value={formData.color} onValueChange={(v) => handleChange("color", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{colors.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Mfg Year</label>
+                  <Input type="number" value={formData.year || ""} onChange={e => handleChange("year", e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Model Year</label>
+                  <Input type="number" value={formData.modelYear || ""} onChange={e => handleChange("modelYear", e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Reg. Year</label>
+                  <Input type="number" value={formData.registrationYear || ""} onChange={e => handleChange("registrationYear", e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Mileage (KM)</label>
+                  <Input type="number" value={formData.mileage || ""} onChange={e => handleChange("mileage", e.target.value)} />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* 3. Ownership TAB */}
+            <TabsContent value="ownership" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Possession */}
+                <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-700 font-semibold text-sm"><User size={16} /> Current Owner</div>
+                    {formData.ownerId && (
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400" onClick={() => handleClearOwner('POSSESSION')}><X size={14} /></Button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-400">Search Client</label>
+                    <ClientSelector
+                      clients={clients}
+                      value={formData.ownerId || ""}
+                      onChange={(cid) => handleClientChange('POSSESSION', cid)}
+                      placeholder="Search owner..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-400">Name Override</label>
+                    <Input value={formData.ownerName || ""} onChange={e => handleChange("ownerName", e.target.value)} className="bg-white h-9 text-sm" />
+                  </div>
+                </div>
+
+                {/* Registered Owner */}
+                <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-700 font-semibold text-sm"><FileText size={16} /> Registered Owner</div>
+                    {formData.registeredOwnerId && (
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400" onClick={() => handleClearOwner('DOCS')}><X size={14} /></Button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-400">Search Client</label>
+                    <ClientSelector
+                      clients={clients}
+                      value={formData.registeredOwnerId || ""}
+                      onChange={(cid) => handleClientChange('DOCS', cid)}
+                      placeholder="Search registered owner..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-400">Name Override</label>
+                    <Input value={formData.registeredOwnerName || ""} onChange={e => handleChange("registeredOwnerName", e.target.value)} className="bg-white h-9 text-sm" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-4 border-t border-slate-100">
+                <label className="text-sm font-medium text-slate-700">Registration Reason</label>
+                <Select value={formData.registrationReason} onValueChange={(v) => handleChange("registrationReason", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="New Registration">New Registration</SelectItem>
+                    <SelectItem value="Transfer Ownership">Transfer Ownership</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </TabsContent>
+
+            {/* 4. Settings TAB */}
+            <TabsContent value="settings" className="space-y-6">
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <h4 className="font-bold text-sm text-slate-800 mb-4">Application Status</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm text-slate-700">Number Plates Applied</p>
+                      <p className="text-xs text-slate-500">Toggle if plates were ever applied for</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={formData.platesApplied !== false} onChange={(e) => handleChange("platesApplied", e.target.checked)} />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+          </Tabs>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t bg-slate-50 flex justify-end gap-3 shrink-0">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={loading} className="bg-slate-900 hover:bg-slate-800">
+            {loading ? "Saving..." : <><Save size={16} className="mr-2" /> Save Changes</>}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+};
