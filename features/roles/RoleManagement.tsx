@@ -40,6 +40,7 @@ const AVAILABLE_PERMISSIONS = [
     { id: 'settings', label: 'Settings', path: '/dashboard/settings' },
     { id: 'users', label: 'User Management', path: '/dashboard/users' },
     { id: 'roles', label: 'Role Management', path: '/dashboard/roles' },
+    { id: 'edit_delivered_vehicle', label: 'Edit Delivered Vehicles', path: 'Action Permission' },
 ];
 
 export const RoleManagement = () => {

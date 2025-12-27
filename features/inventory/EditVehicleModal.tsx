@@ -204,7 +204,7 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
 
             {/* 1. Identity TAB */}
             <TabsContent value="identity" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-500">Brand</label>
                   <Select value={formData.brandId} onValueChange={handleBrandChange}>
@@ -229,6 +229,16 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
                   ) : (
                     <Input value={formData.variant || ""} onChange={e => handleChange("variant", e.target.value)} />
                   )}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Vehicle Source</label>
+                  <Select value={formData.vehicleSource || "Local"} onValueChange={(v) => handleChange("vehicleSource", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Local">Local</SelectItem>
+                      <SelectItem value="Imported">Imported</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -305,10 +315,7 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
                   <label className="text-xs font-medium text-slate-500">Reg. Year</label>
                   <Input type="number" value={formData.registrationYear || ""} onChange={e => handleChange("registrationYear", e.target.value)} />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-500">Mileage (KM)</label>
-                  <Input type="number" value={formData.mileage || ""} onChange={e => handleChange("mileage", e.target.value)} />
-                </div>
+
               </div>
             </TabsContent>
 
@@ -367,8 +374,9 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
                 <Select value={formData.registrationReason} onValueChange={(v) => handleChange("registrationReason", v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="New Registration">New Registration</SelectItem>
-                    <SelectItem value="Transfer Ownership">Transfer Ownership</SelectItem>
+                    <SelectItem value="For Purchase">For Purchase</SelectItem>
+                    <SelectItem value="For Transfer">For Transfer</SelectItem>
+                    <SelectItem value="For Registration">For Registration</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

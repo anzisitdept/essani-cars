@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { FileText, Package, Truck, CheckCircle, Ban, Info } from "lucide-react";
 import { ClientSelectionDialog } from "./ClientSelectionDialog";
 import { DocumentData } from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
+
 import { VehicleSelector } from "./VehicleSelector";
 
 interface Vehicle extends DocumentData {
@@ -32,12 +34,15 @@ interface Vehicle extends DocumentData {
 }
 
 export const DeliveryPage = () => {
+    const { userData } = useAuth();
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [selectedDocVehicleId, setSelectedDocVehicleId] = useState("");
     const [selectedPlateVehicleId, setSelectedPlateVehicleId] = useState("");
     const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
     const [currentDeliveryType, setCurrentDeliveryType] = useState<"DOCUMENT" | "PLATE">("DOCUMENT");
     const [currentVehicle, setCurrentVehicle] = useState<Vehicle | null>(null);
+
+    const canEditDelivered = userData?.permissions?.includes("ALL") || userData?.permissions?.includes("edit_delivered_vehicle");
 
     // Fetch all vehicles
     useEffect(() => {
@@ -182,15 +187,22 @@ export const DeliveryPage = () => {
                             onClick={handleDocumentDeliver}
                             disabled={
                                 !selectedDocVehicle ||
-                                selectedDocVehicle.fileStatus === "Delivered"
+                                (selectedDocVehicle.fileStatus === "Delivered" && !canEditDelivered)
                             }
-                            className="w-full bg-blue-600 hover:bg-blue-700"
+                            className={selectedDocVehicle?.fileStatus === "Delivered" && canEditDelivered ? "w-full bg-amber-600 hover:bg-amber-700" : "w-full bg-blue-600 hover:bg-blue-700"}
                         >
                             {selectedDocVehicle?.fileStatus === "Delivered" ? (
-                                <>
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    Already Delivered
-                                </>
+                                canEditDelivered ? (
+                                    <>
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Edit Delivery
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                        Already Delivered
+                                    </>
+                                )
                             ) : (
                                 <>
                                     <FileText className="mr-2 h-4 w-4" />
@@ -247,15 +259,22 @@ export const DeliveryPage = () => {
                             onClick={handlePlateDeliver}
                             disabled={
                                 !selectedPlateVehicle ||
-                                selectedPlateVehicle.plateStatus === "Delivered to Customer"
+                                (selectedPlateVehicle.plateStatus === "Delivered to Customer" && !canEditDelivered)
                             }
-                            className="w-full bg-orange-600 hover:bg-orange-700"
+                            className={selectedPlateVehicle?.plateStatus === "Delivered to Customer" && canEditDelivered ? "w-full bg-amber-600 hover:bg-amber-700" : "w-full bg-orange-600 hover:bg-orange-700"}
                         >
                             {selectedPlateVehicle?.plateStatus === "Delivered to Customer" ? (
-                                <>
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    Already Delivered
-                                </>
+                                canEditDelivered ? (
+                                    <>
+                                        <Package className="mr-2 h-4 w-4" />
+                                        Edit Delivery
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                        Already Delivered
+                                    </>
+                                )
                             ) : (
                                 <>
                                     <Package className="mr-2 h-4 w-4" />
