@@ -21,6 +21,7 @@ interface VehicleGameCardProps {
     onEdit: (v: any) => void;
     onDelete: (id: string) => void;
     onPrintDetail: (v: any) => void;
+    onPrintDelivery: (v: any) => void;
     onPrintBarcode: (v: any) => void;
     onOpenAssets: (v: any) => void;
 
@@ -55,7 +56,7 @@ const ClientField = ({ label, value, icon: Icon }: { label: string, value?: stri
     );
 };
 
-export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPrintBarcode, onOpenAssets }: VehicleGameCardProps) => {
+export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPrintDelivery, onPrintBarcode, onOpenAssets }: VehicleGameCardProps) => {
     const [clientDetails, setClientDetails] = useState<any>({});
     const [loadingClients, setLoadingClients] = useState<Set<string>>(new Set());
     const [showDetail, setShowDetail] = useState(false);
@@ -135,6 +136,7 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                             </div>
                             <div className="space-y-2 text-sm">
                                 <ClientField label="Name" value={client.name} icon={User} />
+                                <ClientField label="Father Name" value={client.fatherName} icon={User} />
                                 <ClientField label="Phone" value={client.phone} icon={Phone} />
                                 <ClientField label="Email" value={client.email} icon={Mail} />
                                 <ClientField label="CNIC" value={client.cnic} icon={CreditCard} />
@@ -254,6 +256,24 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                 </span>
                             </div>
                         )}
+                        {/* Excise Type Details */}
+                        {vehicle.fileStatus === "At Excise" && (
+                            <div className="pl-5 pt-1 space-y-1">
+                                {vehicle.exciseMethod && (
+                                    <div className="flex items-center gap-1.5">
+                                        <Truck size={10} className="text-purple-600" />
+                                        <span className="text-[9px] text-purple-700 font-medium">
+                                            {vehicle.exciseMethod}
+                                        </span>
+                                    </div>
+                                )}
+                                {vehicle.exciseDetails && (
+                                    <span className="block text-[9px] text-slate-500 bg-slate-50 p-1 rounded border border-slate-100 line-clamp-2" title={vehicle.exciseDetails}>
+                                        {vehicle.exciseDetails}
+                                    </span>
+                                )}
+                            </div>
+                        )}
 
                         {/* Returned to Showroom Details */}
                         {vehicle.fileStatus === "Returned Back to Showroom" && (
@@ -340,6 +360,12 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                 <span className="text-slate-900 font-medium">{vehicle.registrationReason}</span>
                             </div>
                         )}
+                        {vehicle.vehicleCC && (
+                            <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
+                                <span className="text-slate-500">ENGINE CC:</span>
+                                <span className="text-slate-900 font-medium">{vehicle.vehicleCC}</span>
+                            </div>
+                        )}
                         {vehicle.ownerName && (
                             <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
                                 <span className="text-slate-500">CURRENT OWNER:</span>
@@ -384,6 +410,11 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                     <Button onClick={() => onPrintDetail(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50">
                         <Printer size={16} />
                     </Button>
+                    {vehicle.fileStatus?.toLowerCase().includes('delivered') && (
+                        <Button onClick={() => onPrintDelivery(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" title="Print Delivery Note">
+                            <FileText size={16} />
+                        </Button>
+                    )}
                     <Button onClick={() => onPrintBarcode(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-yellow-600 hover:bg-yellow-50">
                         <ScanBarcode size={16} />
                     </Button>

@@ -19,12 +19,14 @@ import { BarcodeModal } from "@/components/shared/BarcodeModal";
 import { VehicleDetailModal } from "./VehicleDetailModal";
 import { VehicleGameCard } from "./VehicleGameCard";
 import { AssetsModal } from "@/features/assets/AssetsModal";
+import { VehicleDeliveryModal } from "./VehicleDeliveryModal";
 
 export const InventoryManager = () => {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [editingVehicle, setEditingVehicle] = useState<any | null>(null);
   const [barcodeVehicle, setBarcodeVehicle] = useState<any | null>(null);
   const [viewingVehicle, setViewingVehicle] = useState<any | null>(null);
+  const [deliveryVehicle, setDeliveryVehicle] = useState<any | null>(null); // State for Delivery Print Modal
   const [assetsVehicle, setAssetsVehicle] = useState<any | null>(null); // State for Print Modal
 
   // --- Filter States ---
@@ -324,6 +326,7 @@ export const InventoryManager = () => {
                 onEdit={setEditingVehicle}
                 onDelete={handleDelete}
                 onPrintDetail={setViewingVehicle}
+                onPrintDelivery={setDeliveryVehicle}
                 onPrintBarcode={setBarcodeVehicle}
                 onOpenAssets={setAssetsVehicle}
               />
@@ -370,6 +373,13 @@ export const InventoryManager = () => {
         isOpen={!!assetsVehicle}
         onClose={() => setAssetsVehicle(null)}
         car={assetsVehicle}
+      />
+
+      {/* Vehicle Delivery Print Modal */}
+      <VehicleDeliveryModal
+        isOpen={!!deliveryVehicle}
+        onClose={() => setDeliveryVehicle(null)}
+        vehicle={deliveryVehicle}
       />
     </>
   );

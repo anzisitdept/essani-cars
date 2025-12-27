@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, doc, serverTimestamp, deleteField } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { addToHistory } from "@/utils/vehicleHistory";
@@ -19,13 +19,14 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { User, Phone, MapPin, CheckCircle, Loader2, Package, FileText, Search, ChevronsUpDown, Check } from "lucide-react";
+import { User, Phone, MapPin, CheckCircle, Loader2, Package, FileText, Search, ChevronsUpDown, Check, RotateCcw } from "lucide-react";
 import { DocumentData } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 
 interface Client {
     id: string;
     name: string;
+    fatherName?: string;
     phone: string;
     email?: string;
     cnic?: string;
@@ -58,7 +59,7 @@ export const ClientSelectionDialog = ({
     deliveryType,
     onSuccess
 }: ClientSelectionDialogProps) => {
-    const { user } = useAuth();
+    const { user, userData } = useAuth();
     const [clients, setClients] = useState<Client[]>([]);
     const [selectedClientId, setSelectedClientId] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
@@ -89,6 +90,56 @@ export const ClientSelectionDialog = ({
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.phone.includes(searchTerm)
     );
+
+    // Determine if we are editing an existing delivery
+    const isEditing = deliveryType === "DOCUMENT"
+        ? vehicle?.fileStatus === "Delivered"
+        : vehicle?.plateStatus === "Delivered to Customer";
+
+    const handleReset = async () => {
+        if (!vehicle || !user) return;
+        const resetStatus = deliveryType === "DOCUMENT" ? "Showroom" : "Applied";
+        if (!confirm(`Are you sure you want to revert this vehicle to '${resetStatus}' status? This will remove current delivery information.`)) return;
+
+        setLoading(true);
+        try {
+            const statusField = deliveryType === "DOCUMENT" ? "fileStatus" : "plateStatus";
+
+            const updateData: any = {
+                [statusField]: deliveryType === "DOCUMENT" ? "Showroom" : "Applied",
+                updatedAt: serverTimestamp()
+            };
+
+            // Remove delivery fields
+            if (deliveryType === "DOCUMENT") {
+                updateData.docDeliveredToName = deleteField();
+                updateData.docDeliveredToPhone = deleteField();
+                updateData.docDeliveredToClientId = deleteField();
+                updateData.docDeliveredToContact = deleteField(); // Legacy field cleanup if needed
+            } else {
+                updateData.plateDeliveredToName = deleteField();
+                updateData.plateDeliveredToPhone = deleteField();
+                updateData.plateDeliveredToClientId = deleteField();
+            }
+
+            await updateDoc(doc(db, "cars", vehicle.id), updateData);
+
+            await addToHistory(
+                vehicle.id,
+                "Delivery Reverted",
+                `Delivery marked as invalid/reverted by ${userData?.name || "User"}`,
+                user.uid
+            );
+
+            onSuccess?.();
+            onClose();
+        } catch (err) {
+            console.error("Reset error:", err);
+            setError("Failed to revert delivery status.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleConfirmDelivery = async () => {
         if (!selectedClient || !vehicle || !user) return;
@@ -170,7 +221,7 @@ export const ClientSelectionDialog = ({
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         {deliveryType === "DOCUMENT" ? <FileText size={20} /> : <Package size={20} />}
-                        Confirm {deliveryType === "DOCUMENT" ? "Document" : "Plate"} Delivery
+                        {isEditing ? "Edit Delivery" : `Confirm ${deliveryType === "DOCUMENT" ? "Document" : "Plate"} Delivery`}
                     </DialogTitle>
                     <DialogDescription>
                         Select the client receiving this delivery
@@ -328,6 +379,17 @@ export const ClientSelectionDialog = ({
                             </>
                         )}
                     </Button>
+                    {isEditing && (
+                        <Button
+                            variant="destructive"
+                            onClick={handleReset}
+                            disabled={loading}
+                            className="absolute left-4 bg-red-100 text-red-700 hover:bg-red-200 border-red-200"
+                        >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Reset to {deliveryType === "DOCUMENT" ? "Showroom" : "Applied"}
+                        </Button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

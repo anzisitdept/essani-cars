@@ -43,6 +43,7 @@ export const RegistryForm = () => {
   const transmissions = useSettings("settings_transmission");
   const bodyTypes = useSettings("settings_body");
   const driveTypes = useSettings("settings_drive");
+  const vehicleCCs = useSettings("settings_cc");
 
   // 2. Local State for Dependents
   const [clients, setClients] = useState<any[]>([]);
@@ -58,7 +59,8 @@ export const RegistryForm = () => {
 
   // New Toggles & Fields
   const [platesApplied, setPlatesApplied] = useState(true);
-  const [registrationReason, setRegistrationReason] = useState<"New Registration" | "Transfer Ownership">("New Registration");
+  const [vehicleSource, setVehicleSource] = useState<"Local" | "Imported">("Local");
+  const [registrationReason, setRegistrationReason] = useState<"For Purchase" | "For Transfer" | "For Registration">("For Purchase");
 
   // Derived State
   const availableVariants = models.find(m => m.name === selectedModelName)?.variants || [];
@@ -123,7 +125,7 @@ export const RegistryForm = () => {
       year: Number(formData.get("year")), // Mfg Year
       modelYear: Number(formData.get("modelYear")) || Number(formData.get("year")), // Default to Mfg if empty
       registrationYear: Number(formData.get("registrationYear")) || null,
-      mileage: Number(formData.get("mileage")) || 0,
+      mileage: 0,
 
       // Attributes
       color: formData.get("color"),
@@ -131,6 +133,7 @@ export const RegistryForm = () => {
       transmission: formData.get("transmission"),
       bodyType: formData.get("bodyType"),
       driveType: formData.get("driveType"),
+      vehicleCC: formData.get("vehicleCC"),
 
       // Current Owner (Possession)
       ownerId: currentOwnerId || null,
@@ -151,6 +154,7 @@ export const RegistryForm = () => {
 
       // Registration Information
       registrationReason: registrationReason,
+      vehicleSource: vehicleSource,
 
       // System Metadata
       currentStatus: "SHOWROOM",
@@ -185,7 +189,8 @@ export const RegistryForm = () => {
       setRegisteredOwnerId("");
       setRegisteredOwnerId("");
       setPlatesApplied(true);
-      setRegistrationReason("New Registration");
+      setRegistrationReason("For Purchase");
+      setVehicleSource("Local");
 
     } catch (error) {
       console.error("Registration Error:", error);
@@ -384,6 +389,21 @@ export const RegistryForm = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-500">Vehicle CC</label>
+                <Select name="vehicleCC">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select CC..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vehicleCCs.map(cc => <SelectItem key={cc.id} value={cc.name}>{cc.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-500">Mfg. Year *</label>
                 <Input name="year" type="number" min="1900" max="2099" required placeholder="YYYY" />
@@ -395,13 +415,6 @@ export const RegistryForm = () => {
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-500">Reg. Year</label>
                 <Input name="registrationYear" type="number" min="1900" max="2099" placeholder="YYYY" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500">Mileage (km)</label>
-                <Input name="mileage" type="number" placeholder="0 for New" />
               </div>
             </div>
           </div>
@@ -417,6 +430,10 @@ export const RegistryForm = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-500">Reg. Number</label>
+                <Input name="registrationNumber" placeholder="Unregistered" className="uppercase" />
+              </div>
+              <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-500">Chassis Number *</label>
                 <Input name="chassisNumber" required placeholder="Frame No." className="font-mono uppercase" />
               </div>
@@ -425,30 +442,44 @@ export const RegistryForm = () => {
                 <Input name="engineNumber" required placeholder="Engine No." className="font-mono uppercase" />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500">Reg. Number</label>
-                <Input name="registrationNumber" placeholder="Unregistered" className="uppercase" />
-              </div>
-              <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-500">CPLC Counter No.</label>
                 <Input name="cplcCounter" placeholder="Optional" className="uppercase" />
               </div>
             </div>
 
             {/* Registration Reason */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4">
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-500">Registration Reason *</label>
                 <Select
                   value={registrationReason}
-                  onValueChange={(val) => setRegistrationReason(val as "New Registration" | "Transfer Ownership")}
+                  onValueChange={(val) => setRegistrationReason(val as "For Purchase" | "For Transfer" | "For Registration")}
                   required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Reason..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="New Registration">New Registration</SelectItem>
-                    <SelectItem value="Transfer Ownership">Transfer Ownership</SelectItem>
+                    <SelectItem value="For Purchase">For Purchase</SelectItem>
+                    <SelectItem value="For Transfer">For Transfer</SelectItem>
+                    <SelectItem value="For Registration">For Registration</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-500">Vehicle Source *</label>
+                <Select
+                  value={vehicleSource}
+                  onValueChange={(val) => setVehicleSource(val as "Local" | "Imported")}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Source..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Local">Local</SelectItem>
+                    <SelectItem value="Imported">Imported</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

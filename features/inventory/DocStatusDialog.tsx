@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { addToHistory } from "@/utils/vehicleHistory";
 import { FileText, Building2, Truck, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ExciseTypeDialog } from "./ExciseTypeDialog";
+import { SendToExciseDialog } from "./SendToExciseDialog";
 import { ReturnedToShowroomDialog } from "./ReturnedToShowroomDialog";
 
 interface DocStatusDialogProps {
@@ -176,7 +176,7 @@ export const DocStatusDialog = ({ isOpen, onClose, vehicle }: DocStatusDialogPro
                 </DialogContent>
             </Dialog>
 
-            <ExciseTypeDialog
+            <SendToExciseDialog
                 isOpen={showExciseDialog}
                 onClose={() => setShowExciseDialog(false)}
                 vehicle={vehicle}

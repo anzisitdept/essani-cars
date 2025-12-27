@@ -13,6 +13,7 @@ import { ClientAssetsModal } from "./ClientAssetsModal";
 interface Client {
   id: string;
   name: string;
+  fatherName?: string;
   phone: string;
   email?: string;
   cnic?: string; // National ID
@@ -30,6 +31,7 @@ export const ClientManager = () => {
   // Form State
   const [formData, setFormData] = useState({
     name: "",
+    fatherName: "",
     phone: "",
     email: "",
     cnic: "",
@@ -46,13 +48,14 @@ export const ClientManager = () => {
   }, []);
 
   const resetForm = () => {
-    setFormData({ name: "", phone: "", email: "", cnic: "", address: "" });
+    setFormData({ name: "", fatherName: "", phone: "", email: "", cnic: "", address: "" });
     setIsEditing(null);
   };
 
   const handleEdit = (client: Client) => {
     setFormData({
       name: client.name,
+      fatherName: client.fatherName || "",
       phone: client.phone,
       email: client.email || "",
       cnic: client.cnic || "",
@@ -67,9 +70,32 @@ export const ClientManager = () => {
     }
   };
 
+  // CNIC Auto-Formatting
+  const handleCnicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    if (val.length > 13) val = val.substring(0, 13); // Limit to 13 digits
+
+    let formatted = val;
+    if (val.length > 5) {
+      formatted = val.substring(0, 5) + "-" + val.substring(5);
+    }
+    if (val.length > 12) {
+      formatted = formatted.substring(0, 13) + "-" + val.substring(12);
+    }
+
+    setFormData({ ...formData, cnic: formatted });
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    // CNIC Validation
+    const cnicRegex = /^\d{5}-\d{7}-\d{1}$/;
+    if (formData.cnic && !cnicRegex.test(formData.cnic)) {
+      alert("Invalid CNIC format. Please use XXXXX-XXXXXXX-X");
+      return;
+    }
 
     const payload = {
       ...formData,
@@ -122,6 +148,13 @@ export const ClientManager = () => {
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
+              <User size={12} /> Father Name
+            </label>
+            <Input value={formData.fatherName} onChange={e => setFormData({ ...formData, fatherName: e.target.value })} placeholder="e.g. Ahmed Khan" />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
               <Phone size={12} /> Phone Number *
             </label>
             <Input required value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+92 300..." />
@@ -138,7 +171,7 @@ export const ClientManager = () => {
               <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
                 <CreditCard size={12} /> CNIC / ID
               </label>
-              <Input value={formData.cnic} onChange={e => setFormData({ ...formData, cnic: e.target.value })} placeholder="Optional" />
+              <Input value={formData.cnic} onChange={handleCnicChange} placeholder="43304-9667654-9" maxLength={15} />
             </div>
           </div>
 
@@ -180,7 +213,10 @@ export const ClientManager = () => {
                   {client.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900">{client.name}</h4>
+                  <h4 className="font-semibold text-slate-900">
+                    {client.name}
+                    {client.fatherName && <span className="text-xs font-normal text-slate-500 ml-1">s/o {client.fatherName}</span>}
+                  </h4>
                   <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                     <span className="flex items-center gap-1"><Phone size={10} /> {client.phone}</span>
                     {client.address && <span className="flex items-center gap-1 border-l pl-3 border-slate-200"><MapPin size={10} /> {client.address}</span>}
