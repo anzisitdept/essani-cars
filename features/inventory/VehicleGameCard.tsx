@@ -21,7 +21,7 @@ interface VehicleGameCardProps {
     onEdit: (v: any) => void;
     onDelete: (id: string) => void;
     onPrintDetail: (v: any) => void;
-    onPrintDelivery: (v: any) => void;
+    onPrintDelivery: (v: any, type: "DOCUMENT" | "PLATE") => void;
     onPrintBarcode: (v: any) => void;
     onOpenAssets: (v: any) => void;
 
@@ -190,7 +190,7 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                     </button>
                                 </div>
                                 {vehicle.registrationNumber && (
-                                    <span className="text-[10px] font-mono text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                                    <span className="text-[15px] font-bold text-black bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
                                         {vehicle.registrationNumber}
                                     </span>
                                 )}
@@ -212,13 +212,21 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                 <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
                     <div className="p-3 bg-slate-50/50 space-y-3">
                         <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-500 flex items-center gap-1.5"><Calendar size={12} /> Year</span>
+                            <span className="text-slate-500 flex items-center gap-1.5"><Calendar size={12} /> Mfg. Year</span>
                             <span className="text-slate-900 font-mono font-medium">{vehicle.year}</span>
                         </div>
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-500 flex items-center gap-1.5"><Fuel size={12} /> Fuel</span>
-                            <span className="text-slate-900 font-mono font-medium">{vehicle.fuelType}</span>
-                        </div>
+                        {vehicle.modelYear && (
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-500 flex items-center gap-1.5"><Calendar size={12} /> Model Year</span>
+                                <span className="text-slate-900 font-mono font-medium">{vehicle.modelYear}</span>
+                            </div>
+                        )}
+                        {vehicle.registrationYear && (
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-500 flex items-center gap-1.5"><Calendar size={12} /> Reg. Year</span>
+                                <span className="text-slate-900 font-mono font-medium">{vehicle.registrationYear}</span>
+                            </div>
+                        )}
                     </div>
                     <div className="p-3 bg-slate-50/50 space-y-3">
                         <div className="flex items-center justify-between text-xs">
@@ -228,6 +236,10 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                         <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-500 flex items-center gap-1.5"><div className="w-3 h-3 rounded-full border border-slate-300 shadow-sm" style={{ backgroundColor: vehicle.color || '#fff' }}></div> Color</span>
                             <span className="text-slate-900 font-mono font-medium truncate max-w-[60px]" title={vehicle.color}>{vehicle.color}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                            <span className="text-slate-500 flex items-center gap-1.5"><Fuel size={12} /> Fuel</span>
+                            <span className="text-slate-900 font-mono font-medium">{vehicle.fuelType}</span>
                         </div>
                     </div>
                 </div>
@@ -310,30 +322,54 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                     <div className="bg-slate-50 p-2 rounded border border-slate-100 space-y-1.5">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <CreditCard size={14} className={vehicle.plateStatus === 'Never Applied' ? "text-slate-400" : "text-purple-500"} />
+                                <CreditCard size={14} className={
+                                    vehicle.plateStatus === 'Never Applied' ||
+                                        vehicle.plateStatus === 'Not Issued from Excise' ||
+                                        vehicle.plateStatus === 'At Party\'s Hand'
+                                        ? "text-slate-400"
+                                        : "text-purple-500"
+                                } />
                                 <span className="text-xs text-slate-500 uppercase font-bold tracking-wider">Plates</span>
                             </div>
                             <div className="flex items-center gap-1">
                                 <span className={cn(
                                     "text-[10px] font-mono px-1.5 py-0.5 rounded",
-                                    vehicle.plateStatus === 'Never Applied' ? "text-slate-500 bg-slate-100" : "text-purple-600 bg-purple-50"
+                                    vehicle.plateStatus === 'Never Applied' ||
+                                        vehicle.plateStatus === 'Not Issued from Excise' ||
+                                        vehicle.plateStatus === 'At Party\'s Hand'
+                                        ? "text-slate-500 bg-slate-100"
+                                        : "text-purple-600 bg-purple-50"
                                 )}>
-                                    {(vehicle.plateStatus || "NEVER APPLIED").toUpperCase()}
+                                    {vehicle.plateStatus === 'Not Issued from Excise' || vehicle.plateStatus === 'At Party\'s Hand'
+                                        ? "NOT AVAILABLE"
+                                        : (vehicle.plateStatus || "NEVER APPLIED").toUpperCase()
+                                    }
                                 </span>
-                                {vehicle.plateStatus !== 'Never Applied' && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setShowPlateDialog(true);
-                                        }}
-                                        className="p-1 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors z-20 relative"
-                                        title="Update Plate Status"
-                                    >
-                                        <Settings2 size={12} />
-                                    </button>
-                                )}
+                                {vehicle.plateStatus !== 'Never Applied' &&
+                                    vehicle.plateStatus !== 'Not Issued from Excise' &&
+                                    vehicle.plateStatus !== 'At Party\'s Hand' && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowPlateDialog(true);
+                                            }}
+                                            className="p-1 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors z-20 relative"
+                                            title="Update Plate Status"
+                                        >
+                                            <Settings2 size={12} />
+                                        </button>
+                                    )}
                             </div>
                         </div>
+                        {/* Show reason when plates are not available */}
+                        {(vehicle.plateStatus === 'Not Issued from Excise' || vehicle.plateStatus === 'At Party\'s Hand') && (
+                            <div className="flex items-center gap-1.5 pl-5">
+                                <span className="text-[9px] text-slate-600 font-medium bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                    Reason: {vehicle.plateStatus}
+                                </span>
+                            </div>
+                        )}
+                        {/* Show delivered to info */}
                         {vehicle.plateStatus?.toLowerCase().includes("delivered") && vehicle.plateDeliveredToName && (
                             <div className="flex items-center gap-1.5 pl-5">
                                 <User size={10} className="text-emerald-600" />
@@ -366,6 +402,12 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                 <span className="text-slate-900 font-medium">{vehicle.vehicleCC}</span>
                             </div>
                         )}
+                        {vehicle.vehicleSource && (
+                            <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
+                                <span className="text-slate-500">SOURCE:</span>
+                                <span className="text-slate-900 font-medium">{vehicle.vehicleSource}</span>
+                            </div>
+                        )}
                         {vehicle.ownerName && (
                             <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
                                 <span className="text-slate-500">CURRENT OWNER:</span>
@@ -379,11 +421,17 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                         {vehicle.registeredOwnerName && (
                             <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
                                 <span className="text-slate-500">REG. OWNER:</span>
-                                <ClientPopover clientId={vehicle.registeredOwnerId} clientName={vehicle.registeredOwnerName}>
-                                    <span className="text-purple-600 font-medium truncate max-w-[120px]" title={vehicle.registeredOwnerName}>
-                                        {vehicle.registeredOwnerName}
-                                    </span>
-                                </ClientPopover>
+                                <span className="text-purple-600 font-medium truncate max-w-[120px]" title={vehicle.registeredOwnerName}>
+                                    {vehicle.registeredOwnerName}
+                                </span>
+                            </div>
+                        )}
+                        {vehicle.registeredOwnerCnic && (
+                            <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
+                                <span className="text-slate-500">REG. OWNER CNIC:</span>
+                                <span className="text-purple-600 font-medium" title={vehicle.registeredOwnerCnic}>
+                                    {vehicle.registeredOwnerCnic}
+                                </span>
                             </div>
                         )}
                         {vehicle.currentStatus === 'DELIVERED' && vehicle.deliveredToName && (
@@ -411,8 +459,13 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                         <Printer size={16} />
                     </Button>
                     {vehicle.fileStatus?.toLowerCase().includes('delivered') && (
-                        <Button onClick={() => onPrintDelivery(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" title="Print Delivery Note">
+                        <Button onClick={() => onPrintDelivery(vehicle, "DOCUMENT")} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" title="Print Document Delivery Note">
                             <FileText size={16} />
+                        </Button>
+                    )}
+                    {vehicle.plateStatus?.toLowerCase().includes('delivered') && (
+                        <Button onClick={() => onPrintDelivery(vehicle, "PLATE")} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-purple-600 hover:bg-purple-50" title="Print Plates Delivery Note">
+                            <CreditCard size={16} />
                         </Button>
                     )}
                     <Button onClick={() => onPrintBarcode(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-yellow-600 hover:bg-yellow-50">

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { addToHistory } from "@/utils/vehicleHistory";
-import { CreditCard, Printer, Package, Building2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { CreditCard, Building2, AlertCircle, CheckCircle2, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface PlateStatusDialogProps {
@@ -23,7 +23,15 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
     const currentStatus = vehicle.plateStatus || "Never Applied";
     const isDelivered = currentStatus.toLowerCase().includes("delivered");
 
-    const handleUpdateStatus = async (newStatus: string) => {
+    // Initialize availablity based on status
+    const [isAvailable, setIsAvailable] = useState(() => {
+        if (vehicle.platesAvailable !== undefined) return vehicle.platesAvailable;
+        // Fallback for legacy
+        if (currentStatus === "Not Issued from Excise" || currentStatus === "At Party's Hand") return false;
+        return true;
+    });
+
+    const handleUpdateStatus = async (newStatus: string, available: boolean) => {
         if (!user) return;
         setLoading(true);
 
@@ -31,6 +39,7 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
             // Update vehicle plate status
             await updateDoc(doc(db, "cars", vehicle.id), {
                 plateStatus: newStatus,
+                platesAvailable: available,
                 updatedAt: serverTimestamp()
             });
 
@@ -38,7 +47,7 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
             await addDoc(collection(db, "logs"), {
                 action: `Updated Plate Status: ${newStatus}`,
                 vehicleId: vehicle.id,
-                details: `Changed from ${currentStatus} to ${newStatus}`,
+                details: `Changed from ${currentStatus} to ${newStatus} (Available: ${available})`,
                 performedBy: user.uid,
                 timestamp: serverTimestamp(),
                 type: "STATUS_UPDATE"
@@ -50,7 +59,7 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
                 "Plate Status Update",
                 `Changed status from ${currentStatus} to ${newStatus}`,
                 user.uid,
-                { type: "PLATE", status: newStatus }
+                { type: "PLATE", status: newStatus, available }
             );
 
             onClose();
@@ -61,27 +70,22 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
         }
     };
 
-    const statusOptions = [
+
+
+    const unavailableOptions = [
         {
-            value: "Plates Printing in Process",
-            label: "Printing",
-            desc: "In Process",
-            icon: <Printer size={24} className="text-orange-500" />,
-            color: "orange"
+            value: "Not Issued from Excise",
+            label: "Not Issued",
+            desc: "Delayed/Pending",
+            icon: <AlertCircle size={24} className="text-red-500" />,
+            color: "red"
         },
         {
-            value: "Ready for Collection",
-            label: "Ready",
-            desc: "Ready to Collect",
-            icon: <Package size={24} className="text-blue-500" />,
-            color: "blue"
-        },
-        {
-            value: "Collected by Showroom",
-            label: "Collected",
-            desc: "At Showroom",
-            icon: <Building2 size={24} className="text-green-500" />,
-            color: "green"
+            value: "At Party's Hand",
+            label: "At Party",
+            desc: "With Owner",
+            icon: <User size={24} className="text-slate-500" />,
+            color: "slate"
         }
     ];
 
@@ -115,27 +119,68 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
                             </div>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            {statusOptions.map((option) => (
-                                <Button
-                                    key={option.value}
-                                    variant="outline"
-                                    className={`h-auto py-3 flex flex-col gap-2 relative overflow-hidden ${currentStatus === option.value
-                                        ? `border-${option.color}-500 bg-${option.color}-50 ring-1 ring-${option.color}-500 text-${option.color}-700`
-                                        : "hover:bg-slate-50 border-slate-200"
-                                        }`}
-                                    disabled={currentStatus === option.value || loading}
-                                    onClick={() => handleUpdateStatus(option.value)}
-                                >
-                                    <div className={`p-2 rounded-full ${currentStatus === option.value ? "bg-white" : "bg-slate-100"}`}>
-                                        {option.icon}
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="font-bold text-sm">{option.label}</div>
-                                        <div className="text-[10px] opacity-80 font-normal">{option.desc}</div>
-                                    </div>
-                                </Button>
-                            ))}
+                        <div className="space-y-4">
+                            {/* Toggle Switch */}
+                            <div className="flex items-center justify-between px-1">
+                                <div>
+                                    <p className="font-bold text-sm text-slate-700">Plates Available?</p>
+                                    <p className="text-xs text-slate-500">Are plates physically in the showroom / process?</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={isAvailable}
+                                        onChange={(e) => setIsAvailable(e.target.checked)}
+                                    />
+                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
+                                </label>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {isAvailable ? (
+                                    /* Available - Single Option: Showroom */
+                                    <Button
+                                        variant="outline"
+                                        className={`h-auto py-4 flex flex-col gap-2 relative overflow-hidden col-span-1 sm:col-span-2 ${currentStatus === "Showroom"
+                                            ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500 text-blue-700"
+                                            : "hover:bg-slate-50 border-slate-200"
+                                            }`}
+                                        disabled={currentStatus === "Showroom" || loading}
+                                        onClick={() => handleUpdateStatus("Showroom", true)}
+                                    >
+                                        <div className={`p-3 rounded-full ${currentStatus === "Showroom" ? "bg-white" : "bg-slate-100"}`}>
+                                            <Building2 size={24} className="text-blue-500" />
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="font-bold text-sm">In Showroom</div>
+                                            <div className="text-[10px] opacity-80 font-normal">Plates Available</div>
+                                        </div>
+                                    </Button>
+                                ) : (
+                                    /* Unavailable Options */
+                                    unavailableOptions.map((option) => (
+                                        <Button
+                                            key={option.value}
+                                            variant="outline"
+                                            className={`h-auto py-3 flex flex-col gap-2 relative overflow-hidden ${currentStatus === option.value
+                                                ? `border-${option.color}-500 bg-${option.color}-50 ring-1 ring-${option.color}-500 text-${option.color}-700`
+                                                : "hover:bg-slate-50 border-slate-200"
+                                                }`}
+                                            disabled={currentStatus === option.value || loading}
+                                            onClick={() => handleUpdateStatus(option.value, false)}
+                                        >
+                                            <div className={`p-2 rounded-full ${currentStatus === option.value ? "bg-white" : "bg-slate-100"}`}>
+                                                {option.icon}
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="font-bold text-sm">{option.label}</div>
+                                                <div className="text-[10px] opacity-80 font-normal">{option.desc}</div>
+                                            </div>
+                                        </Button>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     )}
 
