@@ -19,7 +19,8 @@ import { BarcodeModal } from "@/components/shared/BarcodeModal";
 import { VehicleDetailModal } from "./VehicleDetailModal";
 import { VehicleGameCard } from "./VehicleGameCard";
 import { AssetsModal } from "@/features/assets/AssetsModal";
-import { VehicleDeliveryModal } from "./VehicleDeliveryModal";
+import { DocumentDeliveryModal } from "./DocumentDeliveryModal";
+import { PlatesDeliveryModal } from "./PlatesDeliveryModal";
 
 export const InventoryManager = () => {
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -27,6 +28,7 @@ export const InventoryManager = () => {
   const [barcodeVehicle, setBarcodeVehicle] = useState<any | null>(null);
   const [viewingVehicle, setViewingVehicle] = useState<any | null>(null);
   const [deliveryVehicle, setDeliveryVehicle] = useState<any | null>(null); // State for Delivery Print Modal
+  const [deliveryType, setDeliveryType] = useState<"DOCUMENT" | "PLATE" | null>(null); // Track delivery type
   const [assetsVehicle, setAssetsVehicle] = useState<any | null>(null); // State for Print Modal
 
   // --- Filter States ---
@@ -100,18 +102,17 @@ export const InventoryManager = () => {
 
     const matchesPlate =
       plateFilter === "ALL" ||
-      (plateFilter === "NEVER_APPLIED" && (v.plateStatus === "Never Applied" || v.platesApplied === false)) ||
-      (plateFilter === "PRINTING" && v.plateStatus === "Plates Printing in Process") ||
-      (plateFilter === "READY" && v.plateStatus === "Ready for Collection") ||
-      (plateFilter === "COLLECTED" && v.plateStatus === "Collected by Showroom") ||
+      (plateFilter === "NOT_AVAILABLE" && (v.plateStatus === "Never Applied" || v.plateStatus === "Not Issued from Excise" || v.plateStatus === "At Party's Hand")) ||
+      (plateFilter === "SHOWROOM" && v.plateStatus === "Showroom") ||
       (plateFilter === "DELIVERED" && v.plateStatus?.toLowerCase().includes("delivered"));
 
     // 3. Document Filter
     const matchesDoc =
       docFilter === "ALL" ||
+      (docFilter === "NOT_APPLIED" && (v.fileStatus === "Not Applied" || (!v.fileStatus && v.docsApplied === false))) ||
       (docFilter === "SHOWROOM" && (v.fileStatus === "Showroom" || (!v.fileStatus && v.docsApplied === true))) ||
       (docFilter === "EXCISE" && v.fileStatus === "At Excise") ||
-      (docFilter === "NOT_APPLIED" && (v.fileStatus === "Not Applied" || (!v.fileStatus && v.docsApplied === false))) ||
+      (docFilter === "RETURNED" && v.fileStatus === "Returned Back to Showroom") ||
       (docFilter === "DELIVERED" && v.fileStatus?.toLowerCase().includes("delivered"));
 
     // 4. Fuel Type Filter
@@ -252,10 +253,11 @@ export const InventoryManager = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Documents</SelectItem>
+                <SelectItem value="NOT_APPLIED">Not Applied</SelectItem>
                 <SelectItem value="SHOWROOM">Showroom</SelectItem>
                 <SelectItem value="EXCISE">At Excise</SelectItem>
-                <SelectItem value="DELIVERED">Docs Delivered</SelectItem>
-                <SelectItem value="NOT_APPLIED">Docs Not Applied</SelectItem>
+                <SelectItem value="RETURNED">Returned to Showroom</SelectItem>
+                <SelectItem value="DELIVERED">Delivered</SelectItem>
               </SelectContent>
             </Select>
 
@@ -265,11 +267,9 @@ export const InventoryManager = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Plate Status</SelectItem>
-                <SelectItem value="NEVER_APPLIED">Never Applied</SelectItem>
-                <SelectItem value="PRINTING">Printing in Process</SelectItem>
-                <SelectItem value="READY">Ready for Collection</SelectItem>
-                <SelectItem value="COLLECTED">Collected by Showroom</SelectItem>
-                <SelectItem value="DELIVERED">Plates Delivered</SelectItem>
+                <SelectItem value="NOT_AVAILABLE">Not Available</SelectItem>
+                <SelectItem value="SHOWROOM">Showroom</SelectItem>
+                <SelectItem value="DELIVERED">Delivered</SelectItem>
               </SelectContent>
             </Select>
 
@@ -326,7 +326,10 @@ export const InventoryManager = () => {
                 onEdit={setEditingVehicle}
                 onDelete={handleDelete}
                 onPrintDetail={setViewingVehicle}
-                onPrintDelivery={setDeliveryVehicle}
+                onPrintDelivery={(vehicle: any, type: "DOCUMENT" | "PLATE") => {
+                  setDeliveryVehicle(vehicle);
+                  setDeliveryType(type);
+                }}
                 onPrintBarcode={setBarcodeVehicle}
                 onOpenAssets={setAssetsVehicle}
               />
@@ -375,10 +378,23 @@ export const InventoryManager = () => {
         car={assetsVehicle}
       />
 
-      {/* Vehicle Delivery Print Modal */}
-      <VehicleDeliveryModal
-        isOpen={!!deliveryVehicle}
-        onClose={() => setDeliveryVehicle(null)}
+      {/* Document Delivery Print Modal */}
+      <DocumentDeliveryModal
+        isOpen={!!deliveryVehicle && deliveryType === "DOCUMENT"}
+        onClose={() => {
+          setDeliveryVehicle(null);
+          setDeliveryType(null);
+        }}
+        vehicle={deliveryVehicle}
+      />
+
+      {/* Plates Delivery Print Modal */}
+      <PlatesDeliveryModal
+        isOpen={!!deliveryVehicle && deliveryType === "PLATE"}
+        onClose={() => {
+          setDeliveryVehicle(null);
+          setDeliveryType(null);
+        }}
         vehicle={deliveryVehicle}
       />
     </>

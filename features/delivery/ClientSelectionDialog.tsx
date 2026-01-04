@@ -98,7 +98,7 @@ export const ClientSelectionDialog = ({
 
     const handleReset = async () => {
         if (!vehicle || !user) return;
-        const resetStatus = deliveryType === "DOCUMENT" ? "Showroom" : "Applied";
+        const resetStatus = deliveryType === "DOCUMENT" ? "Showroom" : "Showroom";
         if (!confirm(`Are you sure you want to revert this vehicle to '${resetStatus}' status? This will remove current delivery information.`)) return;
 
         setLoading(true);
@@ -106,7 +106,7 @@ export const ClientSelectionDialog = ({
             const statusField = deliveryType === "DOCUMENT" ? "fileStatus" : "plateStatus";
 
             const updateData: any = {
-                [statusField]: deliveryType === "DOCUMENT" ? "Showroom" : "Applied",
+                [statusField]: deliveryType === "DOCUMENT" ? "Showroom" : "Showroom",
                 updatedAt: serverTimestamp()
             };
 

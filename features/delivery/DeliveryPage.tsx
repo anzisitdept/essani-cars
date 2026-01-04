@@ -56,8 +56,12 @@ export const DeliveryPage = () => {
     // Filter vehicles for documents (docsApplied === true)
     const documentVehicles = vehicles.filter(v => v.docsApplied === true);
 
-    // Filter vehicles for plates (platesApplied === true)
-    const plateVehicles = vehicles.filter(v => v.platesApplied === true);
+    // Filter vehicles for plates - exclude those with unavailable statuses
+    const plateVehicles = vehicles.filter(v => {
+        const status = v.plateStatus;
+        // Exclude vehicles where plates are not available
+        return status && status !== "Never Applied" && status !== "Not Issued from Excise" && status !== "At Party's Hand";
+    });
 
     const selectedDocVehicle = vehicles.find(v => v.id === selectedDocVehicleId);
     const selectedPlateVehicle = vehicles.find(v => v.id === selectedPlateVehicleId);

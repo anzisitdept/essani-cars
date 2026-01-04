@@ -44,6 +44,7 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
   const transmissions = useCollection("settings_transmission");
   const bodyTypes = useCollection("settings_body");
   const driveTypes = useCollection("settings_drive");
+  const vehicleCCs = useCollection("settings_cc");
 
   // Clients & Models
   const [clients, setClients] = useState<any[]>([]);
@@ -53,7 +54,33 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
   // Init Data
   useEffect(() => {
     if (!isOpen || !vehicle) return;
-    setFormData(vehicle);
+
+    // Derive initial platesAvailable state for legacy records if missing
+    let initialPlatesAvailable = vehicle.platesAvailable;
+    let initialUnavailableReason = vehicle.plateUnavailableReason || "Not Issued from Excise";
+
+    if (initialPlatesAvailable === undefined) {
+      // Legacy logic: if plateStatus is "Showroom", then available.
+      // If "Not Issued..." or "At Party...", then unavailable.
+      if (vehicle.plateStatus === "Showroom") {
+        initialPlatesAvailable = true;
+      } else if (vehicle.plateStatus === "Not Issued from Excise" || vehicle.plateStatus === "At Party's Hand") {
+        initialPlatesAvailable = false;
+        initialUnavailableReason = vehicle.plateStatus;
+      } else {
+        // Default fallbacks for other statuses (e.g. Delivered) - preserve existing or default to true?
+        // Let's assume true unless explicitly one of the unavailable ones?
+        // Or if it was "Not Applied" (old logic), maybe map to something?
+        // Let's stick to simple derivation:
+        initialPlatesAvailable = vehicle.plateStatus === "Showroom";
+      }
+    }
+
+    setFormData({
+      ...vehicle,
+      platesAvailable: initialPlatesAvailable,
+      plateUnavailableReason: initialUnavailableReason
+    });
   }, [isOpen, vehicle]);
 
   // Fetch Clients
@@ -145,10 +172,19 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Determine plate status based on switch
-      const finalPlateStatus = formData.platesApplied === false
-        ? "Not Applied"
-        : (formData.plateStatus === "Not Applied" ? "Applied" : formData.plateStatus);
+      // Check if plates are already delivered - if so, preserve the status
+      const isPlateDelivered = vehicle.plateStatus?.toLowerCase().includes("delivered");
+
+      // Determine plate status based on switch (only if not already delivered)
+      const finalPlateStatus = isPlateDelivered
+        ? vehicle.plateStatus // Preserve original delivered status
+        : (formData.platesAvailable
+          ? "Showroom"
+          : formData.plateUnavailableReason);
+
+      const finalPlatesAvailable = isPlateDelivered
+        ? vehicle.platesAvailable // Preserve original value
+        : formData.platesAvailable;
 
       await updateDoc(doc(db, "cars", vehicle.id), {
         ...formData,
@@ -157,8 +193,15 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
         modelYear: Number(formData.modelYear) || Number(formData.year),
         registrationYear: Number(formData.registrationYear) || null,
         mileage: Number(formData.mileage) || 0,
-        // Apply plate status logic
-        plateStatus: finalPlateStatus
+
+        // Apply plate status logic (preserve if delivered)
+        platesAvailable: finalPlatesAvailable,
+        plateStatus: finalPlateStatus,
+
+        // Registered Owner (Text Fields always, no ID linking)
+        registeredOwnerId: null,
+        registeredOwnerName: formData.registeredOwnerName || "",
+        registeredOwnerCnic: formData.registeredOwnerCnic || "",
       });
 
       // Add to History
@@ -315,7 +358,13 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
                   <label className="text-xs font-medium text-slate-500">Reg. Year</label>
                   <Input type="number" value={formData.registrationYear || ""} onChange={e => handleChange("registrationYear", e.target.value)} />
                 </div>
-
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Vehicle CC</label>
+                  <Select value={formData.vehicleCC} onValueChange={(v) => handleChange("vehicleCC", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select CC..." /></SelectTrigger>
+                    <SelectContent>{vehicleCCs.map(cc => <SelectItem key={cc.id} value={cc.name}>{cc.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
               </div>
             </TabsContent>
 
@@ -349,22 +398,28 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
                 <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-slate-700 font-semibold text-sm"><FileText size={16} /> Registered Owner</div>
-                    {formData.registeredOwnerId && (
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400" onClick={() => handleClearOwner('DOCS')}><X size={14} /></Button>
-                    )}
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-slate-400">Search Client</label>
-                    <ClientSelector
-                      clients={clients}
-                      value={formData.registeredOwnerId || ""}
-                      onChange={(cid) => handleClientChange('DOCS', cid)}
-                      placeholder="Search registered owner..."
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-400">Name Override</label>
-                    <Input value={formData.registeredOwnerName || ""} onChange={e => handleChange("registeredOwnerName", e.target.value)} className="bg-white h-9 text-sm" />
+
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-400">Owner Name</label>
+                      <Input
+                        value={formData.registeredOwnerName || ""}
+                        onChange={e => handleChange("registeredOwnerName", e.target.value)}
+                        className="bg-white h-9 text-sm"
+                        placeholder="Enter Name..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-400">Owner CNIC</label>
+                      <Input
+                        value={formData.registeredOwnerCnic || ""}
+                        onChange={e => handleChange("registeredOwnerCnic", e.target.value)}
+                        className="bg-white h-9 text-sm font-mono"
+                        placeholder="Enter CNIC..."
+                        maxLength={15}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -386,18 +441,66 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
             <TabsContent value="settings" className="space-y-6">
               <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                 <h4 className="font-bold text-sm text-slate-800 mb-4">Application Status</h4>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm text-slate-700">Number Plates Applied</p>
-                      <p className="text-xs text-slate-500">Toggle if plates were ever applied for</p>
+
+                {/* Check if plates are already delivered */}
+                {vehicle.plateStatus?.toLowerCase().includes("delivered") ? (
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-emerald-100 rounded-full">
+                        <CreditCard size={20} className="text-emerald-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm text-emerald-900 mb-1">Plates Already Delivered</p>
+                        <p className="text-xs text-emerald-700 mb-2">
+                          The number plates for this vehicle have been delivered to the customer.
+                          Plate status cannot be modified.
+                        </p>
+                        <div className="bg-white/50 p-2 rounded border border-emerald-200">
+                          <p className="text-xs text-slate-600"><span className="font-medium">Current Status:</span> {vehicle.plateStatus}</p>
+                          {vehicle.plateDeliveredToName && (
+                            <p className="text-xs text-slate-600 mt-1"><span className="font-medium">Delivered To:</span> {vehicle.plateDeliveredToName}</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" checked={formData.platesApplied !== false} onChange={(e) => handleChange("platesApplied", e.target.checked)} />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
-                    </label>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Plate Status Switch */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm text-slate-700">Plates Available?</p>
+                        <p className="text-xs text-slate-500">Enable if plates are physically present in showroom.</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={formData.platesAvailable === true}
+                          onChange={(e) => handleChange("platesAvailable", e.target.checked)}
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
+                      </label>
+                    </div>
+
+                    {/* Unavailable Reason (Conditional) */}
+                    {!formData.platesAvailable && (
+                      <div className="space-y-1 animate-in slide-in-from-top-2 fade-in">
+                        <label className="text-xs font-medium text-slate-500">Unavailable Reason</label>
+                        <Select
+                          value={formData.plateUnavailableReason}
+                          onValueChange={(v) => handleChange("plateUnavailableReason", v)}
+                        >
+                          <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Not Issued from Excise">Not Issued from Excise</SelectItem>
+                            <SelectItem value="At Party's Hand">At Party's Hand</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </TabsContent>
 

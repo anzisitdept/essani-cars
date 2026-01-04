@@ -53,12 +53,16 @@ export const RegistryForm = () => {
   const [selectedBrandId, setSelectedBrandId] = useState("");
   const [selectedModelName, setSelectedModelName] = useState("");
 
-  // Ownership State (Both Optional)
+  // Ownership State
   const [currentOwnerId, setCurrentOwnerId] = useState("");
-  const [registeredOwnerId, setRegisteredOwnerId] = useState("");
+  
+  // Registered Owner - Text Fields
+  const [registeredOwnerName, setRegisteredOwnerName] = useState("");
+  const [registeredOwnerCnic, setRegisteredOwnerCnic] = useState("");
 
   // New Toggles & Fields
-  const [platesApplied, setPlatesApplied] = useState(true);
+  const [platesAvailable, setPlatesAvailable] = useState(true);
+  const [plateUnavailableReason, setPlateUnavailableReason] = useState<"Not Issued from Excise" | "At Party's Hand">("Not Issued from Excise");
   const [vehicleSource, setVehicleSource] = useState<"Local" | "Imported">("Local");
   const [registrationReason, setRegistrationReason] = useState<"For Purchase" | "For Transfer" | "For Registration">("For Purchase");
 
@@ -103,7 +107,6 @@ export const RegistryForm = () => {
 
     // Resolve Client Details
     const currentOwner = clients.find(c => c.id === currentOwnerId);
-    const registeredOwner = clients.find(c => c.id === registeredOwnerId);
 
     // Generate Unique Barcode (CZ + 9 random digits)
     const barcode = "CZ" + Math.floor(100000000 + Math.random() * 900000000).toString();
@@ -140,14 +143,14 @@ export const RegistryForm = () => {
       ownerName: currentOwner?.name || "",
       ownerContact: currentOwner?.phone || "",
 
-      // Registered Owner (Documents)
-      registeredOwnerId: registeredOwnerId || null,
-      registeredOwnerName: registeredOwner?.name || "",
-      registeredOwnerContact: registeredOwner?.phone || "",
+      // Registered Owner (Documents) - Text Fields
+      registeredOwnerId: null, // No longer linking to client
+      registeredOwnerName: registeredOwnerName || "",
+      registeredOwnerCnic: registeredOwnerCnic || "",
 
       // Application Status Logic
-      platesApplied: platesApplied,
-      plateStatus: platesApplied ? "Applied" : "Never Applied",
+      platesAvailable: platesAvailable,
+      plateStatus: platesAvailable ? "Showroom" : plateUnavailableReason,
 
       docsApplied: true,
       fileStatus: "Showroom",
@@ -186,9 +189,10 @@ export const RegistryForm = () => {
       setSelectedBrandId("");
       setSelectedModelName("");
       setCurrentOwnerId("");
-      setRegisteredOwnerId("");
-      setRegisteredOwnerId("");
-      setPlatesApplied(true);
+      setRegisteredOwnerName("");
+      setRegisteredOwnerCnic("");
+      setPlatesAvailable(true);
+      setPlateUnavailableReason("Not Issued from Excise");
       setRegistrationReason("For Purchase");
       setVehicleSource("Local");
 
@@ -486,23 +490,42 @@ export const RegistryForm = () => {
             </div>
 
             {/* Application Switches */}
-            <div className="flex flex-wrap gap-6 mt-2">
+            <div className="space-y-4 mt-2">
               {/* Plates Switch */}
               <div className="flex items-center p-3 bg-slate-50 rounded-lg border border-slate-100 w-fit">
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     className="sr-only peer"
-                    checked={platesApplied}
-                    onChange={(e) => setPlatesApplied(e.target.checked)}
+                    checked={platesAvailable}
+                    onChange={(e) => setPlatesAvailable(e.target.checked)}
                   />
                   <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-900"></div>
                   <span className="ml-3 text-sm font-medium text-slate-700">
-                    Plates Applied?
+                    Plates Available?
                   </span>
                 </label>
               </div>
 
+              {/* Plate Unavailable Reason - Only show when plates are NOT available */}
+              {!platesAvailable && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-500">Plate Unavailable Reason *</label>
+                  <Select
+                    value={plateUnavailableReason}
+                    onValueChange={(val) => setPlateUnavailableReason(val as "Not Issued from Excise" | "At Party's Hand")}
+                    required={!platesAvailable}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Reason..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Not Issued from Excise">Not Issued from Excise</SelectItem>
+                      <SelectItem value="At Party's Hand">At Party's Hand</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
 
@@ -549,17 +572,27 @@ export const RegistryForm = () => {
                   <span className="text-sm font-semibold text-slate-700">Registered Owner (Documents)</span>
                   <span className="text-[10px] text-slate-400 italic ml-auto">(Optional)</span>
                 </div>
-                <ClientSelector
-                  clients={clients}
-                  value={registeredOwnerId}
-                  onChange={setRegisteredOwnerId}
-                  placeholder="Select Registered Owner..."
-                />
-                <ClientPreview
-                  client={clients.find(c => c.id === registeredOwnerId)}
-                  title="Document Owner Info"
-                  onClear={() => setRegisteredOwnerId("")}
-                />
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-500">Owner Name</label>
+                    <Input
+                      value={registeredOwnerName}
+                      onChange={(e) => setRegisteredOwnerName(e.target.value)}
+                      placeholder="Enter owner name..."
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-500">Owner CNIC</label>
+                    <Input
+                      value={registeredOwnerCnic}
+                      onChange={(e) => setRegisteredOwnerCnic(e.target.value)}
+                      placeholder="Enter CNIC number..."
+                      className="bg-white font-mono"
+                      maxLength={15}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
