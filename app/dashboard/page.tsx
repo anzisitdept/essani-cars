@@ -97,8 +97,12 @@ export default function DashboardPage() {
     const docsExcise = cars.filter(c => c.fileStatus === 'At Excise').length;
     const docsDelivered = cars.filter(c => c.fileStatus?.toLowerCase().includes('delivered')).length;
 
-    const platesPrinting = cars.filter(c => c.plateStatus === 'Plates Printing in Process').length;
-    const platesReady = cars.filter(c => c.plateStatus === 'Ready for Collection').length;
+    const platesShowroom = cars.filter(c => c.plateStatus === 'Showroom').length;
+    const platesNotAvailable = cars.filter(c =>
+      c.plateStatus === 'Not Issued from Excise' ||
+      c.plateStatus === 'At Party\'s Hand' ||
+      c.plateStatus === 'Never Applied'
+    ).length;
     const platesDelivered = cars.filter(c => c.plateStatus?.toLowerCase().includes('delivered')).length;
 
     // --- Critical Alerts Logic ---
@@ -156,7 +160,7 @@ export default function DashboardPage() {
 
     return {
       total, docsShowroom, docsExcise, docsDelivered,
-      platesPrinting, platesReady, platesDelivered,
+      platesShowroom, platesNotAvailable, platesDelivered,
       exciseOverdue, plateDelayed
     };
   }, [cars]);
@@ -317,10 +321,10 @@ export default function DashboardPage() {
         </Card>
 
         {/* Plate Pipeline */}
-        <Card className="shadow-sm border-orange-100 border-l-4 border-l-orange-500">
+        <Card className="shadow-sm border-purple-100 border-l-4 border-l-purple-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold uppercase text-slate-500 tracking-wider flex items-center gap-2">
-              <Printer size={16} className="text-orange-500" /> Number Plate Pipeline
+              <Printer size={16} className="text-purple-500" /> Number Plate Pipeline
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 pt-4">
@@ -329,17 +333,17 @@ export default function DashboardPage() {
               <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -z-10 -translate-y-1/2 rounded-full"></div>
 
               <div className="flex flex-col items-center gap-2 bg-white px-2">
-                <div className="w-12 h-12 rounded-xl bg-yellow-100 text-yellow-700 flex items-center justify-center shadow-sm">
-                  <span className="font-bold text-lg">{analytics.platesPrinting}</span>
+                <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm">
+                  <span className="font-bold text-lg">{analytics.platesShowroom}</span>
                 </div>
-                <span className="text-xs font-bold text-slate-600">Printing</span>
+                <span className="text-xs font-bold text-slate-600">Showroom</span>
               </div>
               <ArrowRight size={20} className="text-slate-300" />
               <div className="flex flex-col items-center gap-2 bg-white px-2">
-                <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm">
-                  <span className="font-bold text-lg">{analytics.platesReady}</span>
+                <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shadow-sm">
+                  <span className="font-bold text-lg">{analytics.platesNotAvailable}</span>
                 </div>
-                <span className="text-xs font-bold text-slate-600">Ready</span>
+                <span className="text-xs font-bold text-slate-600">Not Available</span>
               </div>
               <ArrowRight size={20} className="text-slate-300" />
               <div className="flex flex-col items-center gap-2 bg-white px-2">
@@ -351,8 +355,8 @@ export default function DashboardPage() {
             </div>
 
             <div className="bg-slate-50 p-3 rounded-lg flex justify-between items-center text-xs">
-              <span className="text-slate-500">Action: <b className="text-slate-900">{analytics.platesReady}</b> plates ready to deliver.</span>
-              <Link href="/dashboard/delivery"><Button size="sm" variant="ghost" className="h-6 text-orange-600 hover:text-orange-700 p-0">Go to Delivery</Button></Link>
+              <span className="text-slate-500">Action: <b className="text-slate-900">{analytics.platesShowroom}</b> plates in showroom ready to deliver.</span>
+              <Link href="/dashboard/delivery"><Button size="sm" variant="ghost" className="h-6 text-purple-600 hover:text-purple-700 p-0">Go to Delivery</Button></Link>
             </div>
           </CardContent>
         </Card>
