@@ -55,7 +55,7 @@ export const RegistryForm = () => {
 
   // Ownership State
   const [currentOwnerId, setCurrentOwnerId] = useState("");
-  
+
   // Registered Owner - Text Fields
   const [registeredOwnerName, setRegisteredOwnerName] = useState("");
   const [registeredOwnerCnic, setRegisteredOwnerCnic] = useState("");
@@ -165,10 +165,56 @@ export const RegistryForm = () => {
       updatedAt: serverTimestamp(),
       registeredBy: user.uid,
       history: [{
-        action: "Registration",
-        details: "Initial vehicle registration",
+        action: "Initial Registration",
+        details: `Registered ${brandName} ${selectedModelName} - Chassis: ${formData.get("chassisNumber")}`,
         timestamp: new Date().toISOString(),
-        performedBy: user.uid
+        performedBy: user.uid,
+        type: "REGISTRATION",
+        registrationData: {
+          // Vehicle Identity
+          brand: brandName,
+          model: selectedModelName,
+          variant: formData.get("variant") || "",
+
+          // Years
+          mfgYear: Number(formData.get("year")),
+          modelYear: Number(formData.get("modelYear")) || Number(formData.get("year")),
+          registrationYear: Number(formData.get("registrationYear")) || null,
+
+          // Identification Numbers
+          registrationNumber: formData.get("registrationNumber") || "Unregistered",
+          chassisNumber: formData.get("chassisNumber"),
+          engineNumber: formData.get("engineNumber"),
+          cplcCounter: formData.get("cplcCounter") || "N/A",
+
+          // Registration Info
+          registrationReason: registrationReason,
+          vehicleSource: vehicleSource,
+
+          // Plate Availability
+          platesAvailable: platesAvailable,
+          plateStatus: platesAvailable ? "Showroom" : plateUnavailableReason,
+          plateUnavailableReason: !platesAvailable ? plateUnavailableReason : null,
+
+          // Ownership
+          currentOwner: {
+            id: currentOwnerId || null,
+            name: currentOwner?.name || "Not Assigned",
+            contact: currentOwner?.phone || "N/A"
+          },
+          registeredOwner: {
+            name: registeredOwnerName || "Not Specified",
+            cnic: registeredOwnerCnic || "N/A"
+          },
+
+          // Additional Specs
+          color: formData.get("color"),
+          fuelType: formData.get("fuelType"),
+          transmission: formData.get("transmission"),
+          bodyType: formData.get("bodyType") || "N/A",
+          driveType: formData.get("driveType") || "N/A",
+          vehicleCC: formData.get("vehicleCC") || "N/A"
+        }
       }]
     };
 

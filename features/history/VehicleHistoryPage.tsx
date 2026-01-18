@@ -304,6 +304,63 @@ export const VehicleHistoryPage = () => {
                                                 </h4>
                                                 <p className="text-sm text-slate-600">{entry.details || entry.note || "Details not available"}</p>
 
+                                                {/* Registration Data Expansion */}
+                                                {entry.registrationData && (
+                                                    <div className="mt-3 bg-slate-50 border border-slate-100 rounded-lg p-3 text-sm space-y-3">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+                                                            <div>
+                                                                <span className="text-xs text-slate-400 block">Vehicle</span>
+                                                                <span className="font-medium text-slate-700">
+                                                                    {entry.registrationData.mfgYear} {entry.registrationData.brand} {entry.registrationData.model} {entry.registrationData.variant}
+                                                                </span>
+                                                            </div>
+                                                             <div>
+                                                                <span className="text-xs text-slate-400 block">Chassis / Engine</span>
+                                                                <span className="font-mono text-xs text-slate-700">
+                                                                    {entry.registrationData.chassisNumber} / {entry.registrationData.engineNumber}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-xs text-slate-400 block">Registration No</span>
+                                                                <span className="font-medium text-slate-700">{entry.registrationData.registrationNumber}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-xs text-slate-400 block">Specs</span>
+                                                                <span className="text-slate-700 text-xs">
+                                                                    {entry.registrationData.color} • {entry.registrationData.transmission} • {entry.registrationData.fuelType}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Ownership Section */}
+                                                        <div className="pt-2 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+                                                            <div>
+                                                                <span className="text-xs text-slate-400 block">Current Owner</span>
+                                                                <span className="font-medium text-slate-700">{entry.registrationData.currentOwner?.name}</span>
+                                                                <span className="text-xs text-slate-500 block">{entry.registrationData.currentOwner?.contact}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-xs text-slate-400 block">Registered Owner</span>
+                                                                <span className="font-medium text-slate-700">{entry.registrationData.registeredOwner?.name}</span>
+                                                                <span className="text-xs text-slate-500 block">CNIC: {entry.registrationData.registeredOwner?.cnic}</span>
+                                                            </div>
+                                                        </div>
+
+                                                         {/* Status Section */}
+                                                         <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-2">
+                                                            <div className="px-2 py-1 bg-white border border-slate-200 rounded text-xs text-slate-600">
+                                                                Source: {entry.registrationData.vehicleSource}
+                                                            </div>
+                                                            <div className="px-2 py-1 bg-white border border-slate-200 rounded text-xs text-slate-600">
+                                                                Reason: {entry.registrationData.registrationReason}
+                                                            </div>
+                                                             <div className={`px-2 py-1 border rounded text-xs ${entry.registrationData.platesAvailable ? 'bg-green-50 border-green-100 text-green-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
+                                                                Plates: {entry.registrationData.plateStatus}
+                                                            </div>
+                                                         </div>
+                                                    </div>
+                                                )}
+
                                                 {/* Meta Info */}
                                                 <div className="flex items-center gap-3 pt-2 text-xs text-slate-400">
                                                     <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-full">
