@@ -162,13 +162,37 @@ export const DocumentDeliveryModal = ({ isOpen, onClose, vehicle }: DocumentDeli
                 </p>
 
                 <div className="grid grid-cols-2 gap-12 mt-12">
-                    <div className="border-t-2 border-slate-300 pt-2">
-                        <p className="text-sm font-bold text-slate-900 uppercase">Received By</p>
-                        <p className="text-xs text-slate-500 mt-1">Client Signature & Date</p>
+                    <div>
+                        {deliveryRecipient?.signatureUrl && (
+                            <div className="mb-4">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={deliveryRecipient.signatureUrl}
+                                    alt="Client signature"
+                                    className="max-h-16 object-contain"
+                                />
+                            </div>
+                        )}
+                        <div className="border-t-2 border-slate-300 pt-2">
+                            <p className="text-sm font-bold text-slate-900 uppercase">Received By</p>
+                            <p className="text-xs text-slate-500 mt-1">Client Signature & Date</p>
+                        </div>
                     </div>
-                    <div className="border-t-2 border-slate-300 pt-2">
-                        <p className="text-sm font-bold text-slate-900 uppercase">Authorized By</p>
-                        <p className="text-xs text-slate-500 mt-1">Showroom Representative</p>
+                    <div>
+                        {userData?.signatureUrl && (
+                            <div className="mb-4">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={userData.signatureUrl}
+                                    alt="Staff signature"
+                                    className="max-h-16 object-contain"
+                                />
+                            </div>
+                        )}
+                        <div className="border-t-2 border-slate-300 pt-2">
+                            <p className="text-sm font-bold text-slate-900 uppercase">Authorized By</p>
+                            <p className="text-xs text-slate-500 mt-1">Showroom Representative</p>
+                        </div>
                     </div>
                 </div>
             </div>

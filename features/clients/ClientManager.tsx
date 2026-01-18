@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, FormEvent, useRef } from "react";
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Search, Plus, Pencil, Trash2, User, Phone, Mail, MapPin, CreditCard, X, Image as ImageIcon } from "lucide-react";
 import { ClientAssetsModal } from "./ClientAssetsModal";
+import { SignatureCapture, SignatureCaptureRef } from "@/components/SignatureCapture";
+import { uploadToImgBB } from "@/lib/imgbbUpload";
 
 
 interface Client {
@@ -19,6 +21,7 @@ interface Client {
   cnic?: string; // National ID
   address?: string;
   assets?: string[];
+  signatureUrl?: string; // Signature image URL
 }
 
 export const ClientManager = () => {
@@ -38,6 +41,11 @@ export const ClientManager = () => {
     address: ""
   });
 
+  // Signature State
+  const signatureRef = useRef<SignatureCaptureRef | null>(null);
+  const [uploadingSignature, setUploadingSignature] = useState(false);
+  const [editingClientSignature, setEditingClientSignature] = useState<string | undefined>();
+
   // Fetch Clients
   useEffect(() => {
     const q = query(collection(db, "clients"), orderBy("name"));
@@ -50,6 +58,8 @@ export const ClientManager = () => {
   const resetForm = () => {
     setFormData({ name: "", fatherName: "", phone: "", email: "", cnic: "", address: "" });
     setIsEditing(null);
+    setEditingClientSignature(undefined);
+    signatureRef.current?.clear();
   };
 
   const handleEdit = (client: Client) => {
@@ -62,6 +72,7 @@ export const ClientManager = () => {
       address: client.address || ""
     });
     setIsEditing(client.id);
+    setEditingClientSignature(client.signatureUrl);
   };
 
   const handleDelete = async (id: string) => {
@@ -97,8 +108,26 @@ export const ClientManager = () => {
       return;
     }
 
+    // Handle signature upload
+    let signatureUrl = editingClientSignature;
+    if (signatureRef.current && !signatureRef.current.isEmpty()) {
+      try {
+        setUploadingSignature(true);
+        const signatureData = signatureRef.current.getSignatureDataURL();
+        if (signatureData) {
+          signatureUrl = await uploadToImgBB(signatureData);
+        }
+      } catch (error) {
+        console.error("Signature upload failed:", error);
+        alert("Warning: Client saved but signature upload failed.");
+      } finally {
+        setUploadingSignature(false);
+      }
+    }
+
     const payload = {
       ...formData,
+      signatureUrl,
       updatedBy: user.uid,
       updatedAt: serverTimestamp()
     };
@@ -182,7 +211,18 @@ export const ClientManager = () => {
             <Input value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="City, Area..." />
           </div>
 
-          <Button type="submit" className="w-full bg-slate-900">
+          <div className="pt-4 border-t border-slate-100">
+            <SignatureCapture
+              ref={signatureRef}
+              existingSignature={editingClientSignature}
+              label="Client Signature (Optional)"
+            />
+            {uploadingSignature && (
+              <p className="text-xs text-blue-600 mt-2">Uploading signature...</p>
+            )}
+          </div>
+
+          <Button type="submit" className="w-full bg-slate-900" disabled={uploadingSignature}>
             {isEditing ? "Update Client" : "Add Client"}
           </Button>
         </form>
