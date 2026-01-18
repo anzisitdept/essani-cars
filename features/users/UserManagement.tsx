@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, FormEvent, useRef } from "react";
 import {
   collection,
   addDoc,
@@ -30,6 +30,8 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Search, Trash2, Pencil, X, CheckCircle2, UserCog, Filter } from "lucide-react";
+import { SignatureCapture, SignatureCaptureRef } from "@/components/SignatureCapture";
+import { uploadToImgBB } from "@/lib/imgbbUpload";
 
 // Re-use config for secondary app (creation only)
 const firebaseConfig = {
@@ -47,6 +49,7 @@ interface UserData {
   name: string;
   role: string;
   roleId?: string; // Link to roles collection
+  signatureUrl?: string; // Signature image URL
   createdAt: any;
 }
 
@@ -68,6 +71,10 @@ export const UserManagement = () => {
 
   // Editing State
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
+
+  // Signature State
+  const signatureRef = useRef<SignatureCaptureRef | null>(null);
+  const [uploadingSignature, setUploadingSignature] = useState(false);
 
   // Fetch Users and Roles
   useEffect(() => {
@@ -107,6 +114,23 @@ export const UserManagement = () => {
     const selectedRole = availableRoles.find(r => r.id === roleId);
     const roleName = selectedRole ? selectedRole.name : "Manager"; // Fallback
 
+    // Handle signature upload
+    let signatureUrl: string | undefined;
+    if (signatureRef.current && !signatureRef.current.isEmpty()) {
+      try {
+        setUploadingSignature(true);
+        const signatureData = signatureRef.current.getSignatureDataURL();
+        if (signatureData) {
+          signatureUrl = await uploadToImgBB(signatureData);
+        }
+      } catch (error) {
+        console.error("Signature upload failed:", error);
+        setMessage("Warning: User created but signature upload failed.");
+      } finally {
+        setUploadingSignature(false);
+      }
+    }
+
     // 1. Setup Secondary App to avoid logging out the Admin
     const secondaryAppName = "secondaryApp";
     let secondaryApp;
@@ -128,6 +152,7 @@ export const UserManagement = () => {
         role: roleName,
         roleId: roleId,
         name,
+        signatureUrl,
         createdAt: serverTimestamp(),
         createdBy: user.uid
       });
@@ -144,6 +169,7 @@ export const UserManagement = () => {
       await signOut(secondaryAuth);
       setMessage("Success: User created successfully!");
       form.reset();
+      signatureRef.current?.clear();
     } catch (error: any) {
       console.error(error);
       setMessage(`Error: ${error.message}`);
@@ -165,10 +191,27 @@ export const UserManagement = () => {
       const selectedRole = availableRoles.find(r => r.id === roleId);
       const roleName = selectedRole ? selectedRole.name : editingUser.role;
 
+      // Handle signature upload if changed
+      let signatureUrl = editingUser.signatureUrl;
+      if (signatureRef.current && !signatureRef.current.isEmpty()) {
+        try {
+          setUploadingSignature(true);
+          const signatureData = signatureRef.current.getSignatureDataURL();
+          if (signatureData) {
+            signatureUrl = await uploadToImgBB(signatureData);
+          }
+        } catch (error) {
+          console.error("Signature upload failed:", error);
+        } finally {
+          setUploadingSignature(false);
+        }
+      }
+
       await updateDoc(doc(db, "users", editingUser.id), {
         name: formData.get("name"),
         role: roleName,
         roleId: roleId,
+        signatureUrl,
         updatedAt: serverTimestamp()
       });
 
@@ -385,7 +428,18 @@ export const UserManagement = () => {
             </p>
           </div>
 
-          <Button type="submit" className="w-full bg-slate-900 mt-2" disabled={loading}>
+          <div className="pt-4 border-t border-slate-100">
+            <SignatureCapture
+              ref={signatureRef}
+              existingSignature={editingUser?.signatureUrl}
+              label="User Signature (Optional)"
+            />
+            {uploadingSignature && (
+              <p className="text-xs text-blue-600 mt-2">Uploading signature...</p>
+            )}
+          </div>
+
+          <Button type="submit" className="w-full bg-slate-900 mt-2" disabled={loading || uploadingSignature}>
             {loading ? "Processing..." : (editingUser ? "Update User" : "Create Account")}
           </Button>
         </form>

@@ -9,7 +9,7 @@ import {
   User,
   UserCredential
 } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 // Fix for: Property '__initial_auth_token' does not exist on type 'Window'
@@ -49,14 +49,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       signInWithCustomToken(auth, window.__initial_auth_token).catch(console.error);
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        // Fetch Role from Firestore immediately upon login
-        try {
-          const docRef = doc(db, "users", u.uid);
-          const docSnap = await getDoc(docRef);
+    let userDataUnsubscribe: (() => void) | null = null;
 
+    const authUnsubscribe = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+
+      // Clean up previous user data listener
+      if (userDataUnsubscribe) {
+        userDataUnsubscribe();
+        userDataUnsubscribe = null;
+      }
+
+      if (u) {
+        // Set up real-time listener for user data (including signature updates)
+        const docRef = doc(db, "users", u.uid);
+        userDataUnsubscribe = onSnapshot(docRef, async (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data() as UserData;
             let permissions: string[] = [];
@@ -87,16 +94,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.warn("No user document found in Firestore for this UID");
             setUserData({ role: 'manager', permissions: [] });
           }
-        } catch (e) {
-          console.error("Error fetching user role:", e);
+        }, (error) => {
+          console.error("Error listening to user data:", error);
           setUserData(null);
-        }
+        });
       } else {
         setUserData(null);
       }
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      authUnsubscribe();
+      if (userDataUnsubscribe) {
+        userDataUnsubscribe();
+      }
+    };
   }, []);
 
   const login = (email: string, password: string) => signInWithEmailAndPassword(auth, email, password);
