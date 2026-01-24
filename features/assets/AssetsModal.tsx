@@ -21,7 +21,7 @@ interface AssetsModalProps {
   car: Car | null;
 }
 
-const IMGBB_API_KEY = "a6736e3e38e68147b6f9d7b24d2f8d36";
+const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
 const MAX_FILE_SIZE_MB = 90;
 
 // Utility: Compress PDF

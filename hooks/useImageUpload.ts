@@ -1,11 +1,16 @@
 import { useState } from "react";
 
-const IMGBB_API_KEY = "a6736e3e38e68147b6f9d7b24d2f8d36"; // Reusing your key
+const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
 
 export const useImageUpload = () => {
   const [uploading, setUploading] = useState(false);
 
   const uploadImage = async (file: File): Promise<string | null> => {
+    if (!IMGBB_API_KEY) {
+      console.error("ImgBB API key is not configured");
+      return null;
+    }
+
     setUploading(true);
     const formData = new FormData();
     formData.append("image", file);
