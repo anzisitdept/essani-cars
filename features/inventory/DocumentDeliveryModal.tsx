@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Printer, Car, Calendar, Zap, Fuel, Settings2, FileText, User, Hash, MapPin, Phone, CreditCard, PenTool } from "lucide-react";
+import { X, Printer, Car, Calendar, Zap, Fuel, Settings2, FileText, User, Hash, MapPin, Phone, CreditCard, PenTool, StickyNote } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { doc, getDoc } from "firebase/firestore";
@@ -20,6 +20,7 @@ export const DocumentDeliveryModal = ({ isOpen, onClose, vehicle }: DocumentDeli
     const [regOwner, setRegOwner] = useState<any>(null);
     const [deliveryRecipient, setDeliveryRecipient] = useState<any>(null);
     const [mounted, setMounted] = useState(false);
+    const [includeNotes, setIncludeNotes] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -147,10 +148,19 @@ export const DocumentDeliveryModal = ({ isOpen, onClose, vehicle }: DocumentDeli
                         <DetailRow label="Phone" value={deliveryRecipient?.phone || vehicle.docDeliveredToPhone || vehicle.ownerContact} icon={Phone} />
                         <DetailRow label="CNIC / ID" value={deliveryRecipient?.cnic} icon={CreditCard} />
                         <DetailRow label="Address" value={deliveryRecipient?.address} icon={MapPin} />
-                        {vehicle.deliveryNotes && <DetailRow label="Notes" value={vehicle.deliveryNotes} />}
                     </div>
                 </div>
             </div>
+
+            {/* --- Notes Section (if included) --- */}
+            {includeNotes && vehicle.documentDeliveryNotes && (
+                <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <h3 className="text-sm font-bold uppercase text-slate-900 mb-2 flex items-center gap-2">
+                        <StickyNote size={16} className="text-amber-600" /> Delivery Notes
+                    </h3>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{vehicle.documentDeliveryNotes}</p>
+                </div>
+            )}
 
             {/* --- Signatures Section --- */}
             <div className="mt-16 mb-8">
@@ -158,7 +168,7 @@ export const DocumentDeliveryModal = ({ isOpen, onClose, vehicle }: DocumentDeli
                     <PenTool size={16} /> Acknowledgement
                 </h3>
                 <p className="text-xs text-slate-500 mb-8 italic">
-                    By signing below, I acknowledge that I have received the vehicle documents described above in good condition and as agreed.
+                    By signing below, I acknowledge that I have received the vehicle documents described above as agreed.
                 </p>
 
                 <div className="grid grid-cols-2 gap-12 mt-12">
@@ -250,7 +260,18 @@ export const DocumentDeliveryModal = ({ isOpen, onClose, vehicle }: DocumentDeli
                             <Printer className="text-slate-500" size={20} />
                             <h3 className="font-semibold text-slate-700">Print Preview - Document Delivery Note</h3>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
+                            {vehicle.documentDeliveryNotes && (
+                                <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={includeNotes}
+                                        onChange={(e) => setIncludeNotes(e.target.checked)}
+                                        className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                    Include delivery notes
+                                </label>
+                            )}
                             <Button onClick={handlePrint} className="gap-2 bg-slate-900 hover:bg-slate-800 text-white">
                                 <Printer size={16} /> Print Note
                             </Button>

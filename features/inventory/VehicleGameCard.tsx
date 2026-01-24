@@ -1,15 +1,16 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
     CarFront, Calendar, Fuel, Zap, Ban, CheckCircle2,
     FileText, User, Printer, ScanBarcode, Pencil, Trash2,
-    ShieldCheck, Truck, AlertTriangle, Image as ImageIcon, Phone, Mail, CreditCard, MapPin, Settings2, Copy, Check
+    ShieldCheck, Truck, AlertTriangle, Image as ImageIcon, Phone, Mail, CreditCard, MapPin, Settings2, Copy, Check, StickyNote
 } from "lucide-react";
 import { VehicleDetailModal } from "./VehicleDetailModal";
 import { DocStatusDialog } from "./DocStatusDialog";
@@ -63,6 +64,13 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
     const [showDocStatus, setShowDocStatus] = useState(false);
     const [showPlateDialog, setShowPlateDialog] = useState(false);
 
+    // Notes editing state
+    const [editingDocNotes, setEditingDocNotes] = useState(false);
+    const [editingPlateNotes, setEditingPlateNotes] = useState(false);
+    const [docNotes, setDocNotes] = useState(vehicle.documentDeliveryNotes || "");
+    const [plateNotes, setPlateNotes] = useState(vehicle.plateDeliveryNotes || "");
+    const [savingNotes, setSavingNotes] = useState(false);
+
     // Status Color Logic (Neon/Gaming Palette - Light Mode)
 
 
@@ -108,6 +116,29 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                 newSet.delete(clientId);
                 return newSet;
             });
+        }
+    };
+
+    // Save notes to Firestore
+    const saveNotes = async (type: "DOCUMENT" | "PLATE") => {
+        setSavingNotes(true);
+        try {
+            const updateData = type === "DOCUMENT"
+                ? { documentDeliveryNotes: docNotes }
+                : { plateDeliveryNotes: plateNotes };
+
+            await updateDoc(doc(db, "cars", vehicle.id), updateData);
+
+            if (type === "DOCUMENT") {
+                setEditingDocNotes(false);
+            } else {
+                setEditingPlateNotes(false);
+            }
+        } catch (error) {
+            console.error("Error saving notes:", error);
+            alert("Failed to save notes. Please try again.");
+        } finally {
+            setSavingNotes(false);
         }
     };
 
@@ -459,14 +490,120 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                         <Printer size={16} />
                     </Button>
                     {vehicle.fileStatus?.toLowerCase().includes('delivered') && (
-                        <Button onClick={() => onPrintDelivery(vehicle, "DOCUMENT")} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" title="Print Document Delivery Note">
-                            <FileText size={16} />
-                        </Button>
+                        <>
+                            <Button onClick={() => onPrintDelivery(vehicle, "DOCUMENT")} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" title="Print Document Delivery Note">
+                                <FileText size={16} />
+                            </Button>
+                            <Popover open={editingDocNotes} onOpenChange={setEditingDocNotes}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 relative"
+                                        title="Edit Document Delivery Notes"
+                                        onClick={(e) => { e.stopPropagation(); setEditingDocNotes(true); }}
+                                    >
+                                        <StickyNote size={14} />
+                                        {vehicle.documentDeliveryNotes && (
+                                            <span className="absolute -top-1 -right-1 h-2 w-2 bg-emerald-500 rounded-full" />
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80" align="start">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2 pb-2 border-b">
+                                            <StickyNote size={16} className="text-emerald-600" />
+                                            <h4 className="font-semibold text-sm">Document Delivery Notes</h4>
+                                        </div>
+                                        <Textarea
+                                            value={docNotes}
+                                            onChange={(e) => setDocNotes(e.target.value)}
+                                            placeholder="Add notes for document delivery..."
+                                            className="min-h-[100px] text-sm"
+                                        />
+                                        <div className="flex gap-2 justify-end">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setDocNotes(vehicle.documentDeliveryNotes || "");
+                                                    setEditingDocNotes(false);
+                                                }}
+                                                disabled={savingNotes}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => saveNotes("DOCUMENT")}
+                                                disabled={savingNotes}
+                                                className="bg-emerald-600 hover:bg-emerald-700"
+                                            >
+                                                {savingNotes ? "Saving..." : "Save"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </>
                     )}
                     {vehicle.plateStatus?.toLowerCase().includes('delivered') && (
-                        <Button onClick={() => onPrintDelivery(vehicle, "PLATE")} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-purple-600 hover:bg-purple-50" title="Print Plates Delivery Note">
-                            <CreditCard size={16} />
-                        </Button>
+                        <>
+                            <Button onClick={() => onPrintDelivery(vehicle, "PLATE")} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-purple-600 hover:bg-purple-50" title="Print Plates Delivery Note">
+                                <CreditCard size={16} />
+                            </Button>
+                            <Popover open={editingPlateNotes} onOpenChange={setEditingPlateNotes}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-slate-400 hover:text-purple-600 hover:bg-purple-50 relative"
+                                        title="Edit Plates Delivery Notes"
+                                        onClick={(e) => { e.stopPropagation(); setEditingPlateNotes(true); }}
+                                    >
+                                        <StickyNote size={14} />
+                                        {vehicle.plateDeliveryNotes && (
+                                            <span className="absolute -top-1 -right-1 h-2 w-2 bg-purple-500 rounded-full" />
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80" align="start">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2 pb-2 border-b">
+                                            <StickyNote size={16} className="text-purple-600" />
+                                            <h4 className="font-semibold text-sm">Plates Delivery Notes</h4>
+                                        </div>
+                                        <Textarea
+                                            value={plateNotes}
+                                            onChange={(e) => setPlateNotes(e.target.value)}
+                                            placeholder="Add notes for plates delivery..."
+                                            className="min-h-[100px] text-sm"
+                                        />
+                                        <div className="flex gap-2 justify-end">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setPlateNotes(vehicle.plateDeliveryNotes || "");
+                                                    setEditingPlateNotes(false);
+                                                }}
+                                                disabled={savingNotes}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => saveNotes("PLATE")}
+                                                disabled={savingNotes}
+                                                className="bg-purple-600 hover:bg-purple-700"
+                                            >
+                                                {savingNotes ? "Saving..." : "Save"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </>
                     )}
                     <Button onClick={() => onPrintBarcode(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-yellow-600 hover:bg-yellow-50">
                         <ScanBarcode size={16} />
