@@ -4,12 +4,6 @@
  * @returns Promise with the uploaded image URL
  */
 export async function uploadToImgBB(base64Image: string): Promise<string> {
-    const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
-
-    if (!apiKey) {
-        throw new Error("ImgBB API key is not configured. Please add NEXT_PUBLIC_IMGBB_API_KEY to your .env.local file");
-    }
-
     // Remove data:image/png;base64, prefix if present
     const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
 
@@ -17,7 +11,7 @@ export async function uploadToImgBB(base64Image: string): Promise<string> {
     formData.append('image', base64Data);
 
     try {
-        const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        const response = await fetch("/api/upload", {
             method: 'POST',
             body: formData,
         });
