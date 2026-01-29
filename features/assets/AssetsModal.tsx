@@ -21,7 +21,69 @@ interface AssetsModalProps {
   car: Car | null;
 }
 
-const MAX_FILE_SIZE_MB = 90;
+const MAX_FILE_SIZE_MB = 4; // Vercel limit is 4.5MB
+
+// Utility: Compress Image
+const compressImage = async (file: File): Promise<File> => {
+  // If it's not an image (e.g. PDF), return original
+  if (!file.type.startsWith('image/')) return file;
+
+  // If already small enough, return original
+  if (file.size <= 1024 * 1024 * 1) return file; // If < 1MB, don't compress
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Max dimension for reasonable quality/size balance
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1920;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const newFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(newFile);
+            } else {
+              reject(new Error('Canvas compression failed'));
+            }
+          },
+          'image/jpeg',
+          0.8 // Quality 80%
+        );
+      };
+      img.onerror = (error) => reject(error);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 // Utility: Compress PDF
 const compressPDF = async (file: File): Promise<File> => {
@@ -133,6 +195,20 @@ export const AssetsModal = ({ isOpen, onClose, car }: AssetsModalProps) => {
           }
 
           let fileToUpload = file;
+
+          // Compress Image files
+          if (file.type.startsWith('image/')) {
+            try {
+              const originalSize = formatFileSize(file.size);
+              fileToUpload = await compressImage(file);
+              const compressedSize = formatFileSize(fileToUpload.size);
+              if (file.size !== fileToUpload.size) {
+                console.log(`Image compressed: ${originalSize} → ${compressedSize}`);
+              }
+            } catch (e) {
+              console.warn("Image compression failed, trying original", e);
+            }
+          }
 
           // Compress PDF files
           if (file.type === 'application/pdf') {
