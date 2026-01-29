@@ -21,7 +21,7 @@ interface AssetsModalProps {
   car: Car | null;
 }
 
-const MAX_FILE_SIZE_MB = 4; // Vercel limit is 4.5MB
+const MAX_FILE_SIZE_MB = 30; // Vercel limit is 4.5MB
 
 // Utility: Compress Image
 const compressImage = async (file: File): Promise<File> => {
