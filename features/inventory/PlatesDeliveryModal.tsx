@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Printer, Car, Calendar, Zap, Fuel, Settings2, Package, User, Hash, MapPin, Phone, CreditCard, PenTool, StickyNote } from "lucide-react";
+import { X, Printer, Car, Calendar, Zap, Fuel, Settings2, Package, User, Hash, MapPin, Phone, CreditCard, PenTool } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { doc, getDoc } from "firebase/firestore";
@@ -20,7 +20,6 @@ export const PlatesDeliveryModal = ({ isOpen, onClose, vehicle }: PlatesDelivery
     const [regOwner, setRegOwner] = useState<any>(null);
     const [deliveryRecipient, setDeliveryRecipient] = useState<any>(null);
     const [mounted, setMounted] = useState(false);
-    const [includeNotes, setIncludeNotes] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -148,17 +147,20 @@ export const PlatesDeliveryModal = ({ isOpen, onClose, vehicle }: PlatesDelivery
                         <DetailRow label="Phone" value={deliveryRecipient?.phone || vehicle.plateDeliveredToPhone || vehicle.ownerContact} icon={Phone} />
                         <DetailRow label="CNIC / ID" value={deliveryRecipient?.cnic} icon={CreditCard} />
                         <DetailRow label="Address" value={deliveryRecipient?.address} icon={MapPin} />
+                        {vehicle.plateDeliveryNotes && <DetailRow label="Notes" value={vehicle.plateDeliveryNotes} />}
                     </div>
                 </div>
             </div>
 
-            {/* --- Notes Section (if included) --- */}
-            {includeNotes && vehicle.plateDeliveryNotes && (
-                <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                    <h3 className="text-sm font-bold uppercase text-slate-900 mb-2 flex items-center gap-2">
-                        <StickyNote size={16} className="text-amber-600" /> Delivery Notes
+            {/* --- Delivery Note Section --- */}
+            {vehicle.plateDeliveryNote && (
+                <div className="mb-8 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <h3 className="text-sm font-bold uppercase text-slate-900 mb-3 flex items-center gap-2">
+                        <Package size={16} className="text-purple-600" /> Delivery Note
                     </h3>
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{vehicle.plateDeliveryNotes}</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                        {vehicle.plateDeliveryNote}
+                    </p>
                 </div>
             )}
 
@@ -168,7 +170,7 @@ export const PlatesDeliveryModal = ({ isOpen, onClose, vehicle }: PlatesDelivery
                     <PenTool size={16} /> Acknowledgement
                 </h3>
                 <p className="text-xs text-slate-500 mb-8 italic">
-                    By signing below, I acknowledge that I have received the vehicle number plates described above as agreed.
+                    By signing below, I acknowledge that I have received the vehicle number plates described above in good condition and as agreed.
                 </p>
 
                 <div className="grid grid-cols-2 gap-12 mt-12">
@@ -260,18 +262,7 @@ export const PlatesDeliveryModal = ({ isOpen, onClose, vehicle }: PlatesDelivery
                             <Package className="text-slate-500" size={20} />
                             <h3 className="font-semibold text-slate-700">Print Preview - Plates Delivery Note</h3>
                         </div>
-                        <div className="flex gap-2 items-center">
-                            {vehicle.plateDeliveryNotes && (
-                                <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={includeNotes}
-                                        onChange={(e) => setIncludeNotes(e.target.checked)}
-                                        className="rounded border-slate-300 text-purple-600 focus:ring-purple-500"
-                                    />
-                                    Include delivery notes
-                                </label>
-                            )}
+                        <div className="flex gap-2">
                             <Button onClick={handlePrint} className="gap-2 bg-slate-900 hover:bg-slate-800 text-white">
                                 <Printer size={16} /> Print Note
                             </Button>

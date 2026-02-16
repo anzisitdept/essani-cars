@@ -1,12 +1,11 @@
 "use client";
 import { useState, ChangeEvent, useEffect } from "react";
-import { X, Upload, Loader2, Image as ImageIcon, Trash2, Download, FileText, AlertCircle } from "lucide-react";
+import { X, Upload, Loader2, Image as ImageIcon, Trash2, Download, CheckSquare, Square, Eye } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { doc, updateDoc, arrayUnion, arrayRemove, DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { PDFDocument } from "pdf-lib";
 
 interface Car extends DocumentData {
   id: string;
@@ -21,102 +20,13 @@ interface AssetsModalProps {
   car: Car | null;
 }
 
-const MAX_FILE_SIZE_MB = 30; // Vercel limit is 4.5MB
-
-// Utility: Compress Image
-const compressImage = async (file: File): Promise<File> => {
-  // If it's not an image (e.g. PDF), return original
-  if (!file.type.startsWith('image/')) return file;
-
-  // If already small enough, return original
-  if (file.size <= 1024 * 1024 * 1) return file; // If < 1MB, don't compress
-
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        // Max dimension for reasonable quality/size balance
-        const MAX_WIDTH = 1920;
-        const MAX_HEIGHT = 1920;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const newFile = new File([blob], file.name, {
-                type: 'image/jpeg',
-                lastModified: Date.now(),
-              });
-              resolve(newFile);
-            } else {
-              reject(new Error('Canvas compression failed'));
-            }
-          },
-          'image/jpeg',
-          0.8 // Quality 80%
-        );
-      };
-      img.onerror = (error) => reject(error);
-    };
-    reader.onerror = (error) => reject(error);
-  });
-};
-
-// Utility: Compress PDF
-const compressPDF = async (file: File): Promise<File> => {
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdfDoc = await PDFDocument.load(arrayBuffer);
-
-    // Save with compression options
-    const compressedPdfBytes = await pdfDoc.save({
-      useObjectStreams: true,
-      addDefaultPage: false,
-      objectsPerTick: 50,
-    });
-
-    const compressedBlob = new Blob([compressedPdfBytes as BlobPart], { type: 'application/pdf' });
-    return new File([compressedBlob], file.name, { type: 'application/pdf' });
-  } catch (error) {
-    console.error('PDF compression failed:', error);
-    return file; // Return original if compression fails
-  }
-};
+const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || "";
+const MAX_FILE_SIZE_MB = 10;
 
 // Utility: Validate file size
 const validateFileSize = (file: File, maxSizeMB: number): boolean => {
   const fileSizeMB = file.size / (1024 * 1024);
   return fileSizeMB <= maxSizeMB;
-};
-
-// Utility: Format file size
-const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 };
 
 // Utility: Upload with retry
@@ -128,7 +38,7 @@ const uploadWithRetry = async (
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const response = await fetch("/api/upload", {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
         method: "POST",
         body: formData,
       });
@@ -157,9 +67,15 @@ const uploadWithRetry = async (
 export const AssetsModal = ({ isOpen, onClose, car }: AssetsModalProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [localAssets, setLocalAssets] = useState<string[]>([]);
-  const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Image viewer state
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
+
+  // Multi-select state
+  const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   // Sync local state when modal opens with fresh car data
   useEffect(() => {
@@ -168,6 +84,8 @@ export const AssetsModal = ({ isOpen, onClose, car }: AssetsModalProps) => {
     } else {
       setLocalAssets([]);
     }
+    // Reset selections when modal opens
+    setSelectedAssets(new Set());
   }, [car]);
 
   if (!isOpen || !car) return null;
@@ -188,38 +106,14 @@ export const AssetsModal = ({ isOpen, onClose, car }: AssetsModalProps) => {
         setUploadProgress({ current: i + 1, total: files.length, fileName: file.name });
 
         try {
-          // Validate file size BEFORE compression
+          // Validate file size
           if (!validateFileSize(file, MAX_FILE_SIZE_MB)) {
             failedFiles.push(`${file.name} (exceeds ${MAX_FILE_SIZE_MB}MB limit)`);
             continue;
           }
 
-          let fileToUpload = file;
-
-          // Compress Image files
-          if (file.type.startsWith('image/')) {
-            try {
-              const originalSize = formatFileSize(file.size);
-              fileToUpload = await compressImage(file);
-              const compressedSize = formatFileSize(fileToUpload.size);
-              if (file.size !== fileToUpload.size) {
-                console.log(`Image compressed: ${originalSize} → ${compressedSize}`);
-              }
-            } catch (e) {
-              console.warn("Image compression failed, trying original", e);
-            }
-          }
-
-          // Compress PDF files
-          if (file.type === 'application/pdf') {
-            const originalSize = formatFileSize(file.size);
-            fileToUpload = await compressPDF(file);
-            const compressedSize = formatFileSize(fileToUpload.size);
-            console.log(`PDF compressed: ${originalSize} → ${compressedSize}`);
-          }
-
           const formData = new FormData();
-          formData.append("image", fileToUpload);
+          formData.append("image", file);
 
           // Upload with retry logic
           const data = await uploadWithRetry(formData);
@@ -272,14 +166,43 @@ export const AssetsModal = ({ isOpen, onClose, car }: AssetsModalProps) => {
       });
       // Update local state immediately
       setLocalAssets(prev => prev.filter(asset => asset !== url));
+      // Remove from selection if selected
+      setSelectedAssets(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(url);
+        return newSet;
+      });
     } catch (error) {
       console.error("Delete failed", error);
     }
   };
 
-  const handleDownloadPdf = async (url: string, index: number) => {
-    setDownloadingUrl(url);
+  const toggleAssetSelection = (url: string) => {
+    setSelectedAssets(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(url)) {
+        newSet.delete(url);
+      } else {
+        newSet.add(url);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllAssets = () => {
+    if (selectedAssets.size === localAssets.length) {
+      setSelectedAssets(new Set());
+    } else {
+      setSelectedAssets(new Set(localAssets));
+    }
+  };
+
+  const handleDownloadSelectedAsPdf = async () => {
+    if (selectedAssets.size === 0) return;
+
+    setIsDownloadingPdf(true);
     try {
+      // Load jsPDF if not already loaded
       if (!(window as any).jspdf) {
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
@@ -291,185 +214,274 @@ export const AssetsModal = ({ isOpen, onClose, car }: AssetsModalProps) => {
       }
 
       const { jsPDF } = (window as any).jspdf;
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: 'a4'
+      });
 
-      // Fetch the image/file
-      const response = await fetch(url);
-      const blob = await response.blob();
+      const selectedUrls = Array.from(selectedAssets);
 
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
+      for (let i = 0; i < selectedUrls.length; i++) {
+        const url = selectedUrls[i];
 
-      reader.onloadend = () => {
-        const base64data = reader.result;
-        const pdf = new jsPDF({
-          orientation: 'portrait',
-          unit: 'px',
-          format: 'a4'
+        // Fetch the image
+        const response = await fetch(url);
+        const blob = await response.blob();
+
+        const base64data = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = () => resolve(reader.result as string);
         });
 
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        img.src = base64data as string;
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const image = new Image();
+          image.crossOrigin = "Anonymous";
+          image.src = base64data;
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+        });
 
-        img.onload = () => {
-          const imgWidth = pdf.internal.pageSize.getWidth();
-          const pageHeight = pdf.internal.pageSize.getHeight();
-          const imgHeight = (img.height * imgWidth) / img.width;
+        // Add new page for each image except the first
+        if (i > 0) {
+          pdf.addPage();
+        }
 
-          let heightLeft = imgHeight;
+        const imgWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgHeight = (img.height * imgWidth) / img.width;
 
-          // First page
-          pdf.addImage(img, 'JPEG', 0, 0, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
+        // Center the image vertically if it's smaller than the page
+        const yOffset = imgHeight < pageHeight ? (pageHeight - imgHeight) / 2 : 0;
 
-          // Loop for subsequent pages
-          while (heightLeft > 0) {
-            pdf.addPage();
-            // Calculate the position to show the next slice of the image
-            // The image is shifted upwards by the amount already displayed
-            pdf.addImage(img, 'JPEG', 0, -(imgHeight - heightLeft), imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-          }
+        pdf.addImage(img, 'JPEG', 0, yOffset, imgWidth, imgHeight);
+      }
 
-          pdf.save(`${car.model.replace(/\s+/g, '_')}_${car.chassisNumber}_Asset_${index + 1}.pdf`);
-          setDownloadingUrl(null); // Clear loading state
-        };
-      };
+      pdf.save(`${car.model.replace(/\s+/g, '_')}_${car.chassisNumber}_Assets.pdf`);
 
-    } catch (e) {
-      console.error("PDF Generation Error (User Logic):", e);
+      // Clear selection after download
+      setSelectedAssets(new Set());
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
       alert("Could not generate PDF. Please try again.");
-      setDownloadingUrl(null);
+    } finally {
+      setIsDownloadingPdf(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <Card className="w-full max-w-3xl max-h-[85vh] flex flex-col shadow-xl bg-white overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-              <ImageIcon size={20} />
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <Card className="w-full max-w-4xl max-h-[85vh] flex flex-col shadow-xl bg-white overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                <ImageIcon size={20} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Vehicle Assets</h3>
+                <p className="text-xs text-slate-500">{car.model} • {car.chassisNumber}</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-slate-900">Vehicle Assets</h3>
-              <p className="text-xs text-slate-500">{car.model} • {car.chassisNumber}</p>
+            <div className="flex items-center gap-2">
+              {localAssets.length > 0 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={selectAllAssets}
+                    className="text-xs"
+                  >
+                    {selectedAssets.size === localAssets.length ? "Deselect All" : "Select All"}
+                  </Button>
+                  {selectedAssets.size > 0 && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleDownloadSelectedAsPdf}
+                      disabled={isDownloadingPdf}
+                      className="text-xs bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isDownloadingPdf ? (
+                        <>
+                          <Loader2 size={14} className="mr-1 animate-spin" />
+                          Generating PDF...
+                        </>
+                      ) : (
+                        <>
+                          <Download size={14} className="mr-1" />
+                          Download ({selectedAssets.size})
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </>
+              )}
+              <Button variant="ghost" size="icon" onClick={onClose}>
+                <X size={18} />
+              </Button>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X size={18} />
-          </Button>
-        </div>
 
-        <div className="flex flex-1 overflow-hidden">
-          {/* Gallery Area */}
-          <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
-            {localAssets.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {localAssets.map((url, index) => (
-                  <div key={index} className="group relative aspect-video bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
-                    <img
-                      src={url}
-                      alt={`Asset ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    {/* Overlay Actions */}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-
-                      {/* Download PDF Button */}
-                      <button
-                        onClick={() => handleDownloadPdf(url, index)}
-                        className="p-2 bg-white/90 rounded-full text-slate-700 hover:text-blue-600 hover:bg-white transition-colors disabled:opacity-50"
-                        title="Download as PDF"
-                        disabled={downloadingUrl === url}
-                      >
-                        {downloadingUrl === url ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                      </button>
-
-                      {/* Delete Button */}
-                      <button
-                        onClick={() => handleDeleteAsset(url)}
-                        className="p-2 bg-white/90 rounded-full text-slate-700 hover:text-red-600 hover:bg-white transition-colors"
-                        title="Delete Image"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3 min-h-[300px]">
-                <ImageIcon size={48} className="opacity-20" />
-                <p className="text-sm font-medium">No images uploaded yet</p>
-                <p className="text-xs max-w-[200px] text-center">Upload photos of documents, condition reports, or the vehicle itself.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar / Upload Area */}
-          <div className="w-72 border-l border-slate-200 bg-white p-6 flex flex-col">
-            <h4 className="font-semibold text-sm text-slate-900 mb-4">Add New Assets</h4>
-
-            <div className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-blue-100 bg-blue-50/50 rounded-xl hover:bg-blue-50 transition-colors cursor-pointer group">
-              <Input
-                type="file"
-                accept="image/*,application/pdf"
-                multiple
-                className="absolute inset-0 opacity-0 cursor-pointer z-10 h-full"
-                onChange={handleFileUpload}
-                disabled={isUploading}
-              />
-              <div className="flex flex-col items-center space-y-3 py-4">
-                {isUploading ? (
-                  <>
-                    <Loader2 className="animate-spin text-blue-500" size={32} />
-                    {uploadProgress && (
-                      <div className="w-full space-y-2">
-                        <div className="flex justify-between text-xs text-slate-600">
-                          <span className="truncate max-w-[180px]">{uploadProgress.fileName}</span>
-                          <span>{uploadProgress.current} / {uploadProgress.total}</span>
-                        </div>
-                        <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="bg-blue-500 h-full transition-all duration-300 rounded-full"
-                            style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
-                          />
-                        </div>
+          <div className="flex flex-1 overflow-hidden">
+            {/* Gallery Area */}
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+              {localAssets.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {localAssets.map((url, index) => (
+                    <div key={index} className="group relative aspect-video bg-white rounded-lg border-2 border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
+                      {/* Selection Checkbox */}
+                      <div className="absolute top-2 left-2 z-10">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleAssetSelection(url);
+                          }}
+                          className="p-1.5 bg-white/90 rounded-md shadow-sm hover:bg-white transition-colors"
+                        >
+                          {selectedAssets.has(url) ? (
+                            <CheckSquare size={18} className="text-blue-600" />
+                          ) : (
+                            <Square size={18} className="text-slate-400" />
+                          )}
+                        </button>
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="p-3 bg-white rounded-full shadow-sm text-blue-500 group-hover:scale-110 transition-transform">
-                    <Upload size={24} />
+
+                      {/* Image */}
+                      <img
+                        src={url}
+                        alt={`Asset ${index + 1}`}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => setViewerImage(url)}
+                      />
+
+                      {/* Overlay Actions */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        {/* View Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewerImage(url);
+                          }}
+                          className="p-2 bg-white/90 rounded-full text-slate-700 hover:text-blue-600 hover:bg-white transition-colors"
+                          title="View Image"
+                        >
+                          <Eye size={16} />
+                        </button>
+
+                        {/* Delete Button */}
+                        <button
+                          onClick={() => handleDeleteAsset(url)}
+                          className="p-2 bg-white/90 rounded-full text-slate-700 hover:text-red-600 hover:bg-white transition-colors"
+                          title="Delete Image"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+
+                      {/* Selection Indicator */}
+                      {selectedAssets.has(url) && (
+                        <div className="absolute inset-0 border-4 border-blue-500 pointer-events-none rounded-lg"></div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3 min-h-[300px]">
+                  <ImageIcon size={48} className="opacity-20" />
+                  <p className="text-sm font-medium">No images uploaded yet</p>
+                  <p className="text-xs max-w-[200px] text-center">Upload photos of documents, condition reports, or the vehicle itself.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar / Upload Area */}
+            <div className="w-72 border-l border-slate-200 bg-white p-6 flex flex-col">
+              <h4 className="font-semibold text-sm text-slate-900 mb-4">Add New Assets</h4>
+
+              <div className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-blue-100 bg-blue-50/50 rounded-xl hover:bg-blue-50 transition-colors cursor-pointer group">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10 h-full"
+                  onChange={handleFileUpload}
+                  disabled={isUploading}
+                />
+                <div className="flex flex-col items-center space-y-3 py-4">
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="animate-spin text-blue-500" size={32} />
+                      {uploadProgress && (
+                        <div className="w-full space-y-2">
+                          <div className="flex justify-between text-xs text-slate-600">
+                            <span className="truncate max-w-[180px]">{uploadProgress.fileName}</span>
+                            <span>{uploadProgress.current} / {uploadProgress.total}</span>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                            <div
+                              className="bg-blue-500 h-full transition-all duration-300 rounded-full"
+                              style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="p-3 bg-white rounded-full shadow-sm text-blue-500 group-hover:scale-110 transition-transform">
+                      <Upload size={24} />
+                    </div>
+                  )}
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-medium text-slate-700">
+                      {isUploading ? "Uploading..." : "Click to Upload"}
+                    </p>
+                    <p className="text-[10px] text-slate-400">JPG, PNG supported (max {MAX_FILE_SIZE_MB}MB)</p>
                   </div>
-                )}
-                <div className="text-center space-y-1">
-                  <p className="text-sm font-medium text-slate-700">
-                    {isUploading ? "Uploading..." : "Click to Upload"}
-                  </p>
-                  <p className="text-[10px] text-slate-400">JPG, PNG, PDF supported (max {MAX_FILE_SIZE_MB}MB)</p>
                 </div>
               </div>
-            </div>
 
-            {/* Upload Error Message */}
-            {uploadError && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2 text-red-800">
-                <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                <p className="text-xs">{uploadError}</p>
+              {/* Upload Error Message */}
+              {uploadError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800">
+                  <p className="text-xs">{uploadError}</p>
+                </div>
+              )}
+
+              <div className="mt-auto pt-6 border-t border-slate-100">
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  <strong>Tip:</strong> Click on any image to view it in full size. Select multiple images and click Download to save them as a single PDF file.
+                </p>
               </div>
-            )}
-
-            <div className="mt-auto pt-6 border-t border-slate-100">
-              <p className="text-xs text-slate-400 leading-relaxed">
-                <strong>Note:</strong> Images and PDFs are securely stored. Large PDFs are automatically compressed. Click the download icon on any image to save it as a PDF.
-              </p>
             </div>
           </div>
+        </Card>
+      </div>
+
+      {/* Image Viewer Dialog */}
+      {viewerImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-200"
+          onClick={() => setViewerImage(null)}
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 text-white hover:bg-white/20"
+            onClick={() => setViewerImage(null)}
+          >
+            <X size={24} />
+          </Button>
+          <img
+            src={viewerImage}
+            alt="Full size view"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
-      </Card>
-    </div>
+      )}
+    </>
   );
 };

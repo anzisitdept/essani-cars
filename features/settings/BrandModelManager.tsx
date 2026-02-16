@@ -144,6 +144,29 @@ export const BrandModelManager = () => {
     setRemoveExistingLogo(false);
   };
 
+  const handleDeleteBrand = async (brand: Brand, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent brand selection
+    if (confirm(`Are you sure you want to delete "${brand.name}"? This will also delete all associated models.`)) {
+      try {
+        // Delete the brand
+        await deleteDoc(doc(db, "brands", brand.id));
+
+        // Delete all models associated with this brand
+        const modelsToDelete = models.filter(m => m.brandId === brand.id);
+        await Promise.all(modelsToDelete.map(model => deleteDoc(doc(db, "models", model.id))));
+
+        // Clear selection if the deleted brand was selected
+        if (selectedBrand?.id === brand.id) {
+          setSelectedBrand(null);
+          setSelectedModel(null);
+        }
+      } catch (error) {
+        console.error("Error deleting brand:", error);
+        alert("Failed to delete brand. Please try again.");
+      }
+    }
+  };
+
   const handleAddModel = async () => {
     if (!selectedBrand || !newModelName) return;
     await addDoc(collection(db, "models"), {
@@ -258,6 +281,12 @@ export const BrandModelManager = () => {
                   className="text-slate-300 hover:text-blue-500 p-1 transition-colors"
                 >
                   <Pencil size={14} />
+                </button>
+                <button
+                  onClick={(e) => handleDeleteBrand(brand, e)}
+                  className="text-slate-300 hover:text-red-500 p-1 transition-colors"
+                >
+                  <Trash2 size={14} />
                 </button>
               </div>
             </div>

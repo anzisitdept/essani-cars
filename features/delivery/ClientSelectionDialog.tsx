@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { User, Phone, MapPin, CheckCircle, Loader2, Package, FileText, Search, ChevronsUpDown, Check, RotateCcw } from "lucide-react";
 import { DocumentData } from "firebase/firestore";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ export const ClientSelectionDialog = ({
     const [openCombobox, setOpenCombobox] = useState(false); // Popover state
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [deliveryNote, setDeliveryNote] = useState("");
 
     // Fetch clients
     useEffect(() => {
@@ -82,6 +84,7 @@ export const ClientSelectionDialog = ({
             setSelectedClientId("");
             setSearchTerm("");
             setError("");
+            setDeliveryNote("");
         }
     }, [isOpen]);
 
@@ -185,10 +188,16 @@ export const ClientSelectionDialog = ({
                 updateData.docDeliveredToName = selectedClient.name;
                 updateData.docDeliveredToPhone = selectedClient.phone;
                 updateData.docDeliveredToClientId = selectedClient.id;
+                if (deliveryNote.trim()) {
+                    updateData.docDeliveryNote = deliveryNote.trim();
+                }
             } else {
                 updateData.plateDeliveredToName = selectedClient.name;
                 updateData.plateDeliveredToPhone = selectedClient.phone;
                 updateData.plateDeliveredToClientId = selectedClient.id;
+                if (deliveryNote.trim()) {
+                    updateData.plateDeliveryNote = deliveryNote.trim();
+                }
             }
 
             await updateDoc(doc(db, "cars", vehicle.id), updateData);
@@ -356,7 +365,23 @@ export const ClientSelectionDialog = ({
                             {error}
                         </div>
                     )}
+
+                    {/* Delivery Note */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                            {deliveryType === "DOCUMENT" ? "Document Delivery Note" : "Plate Delivery Note"}
+                            <span className="text-slate-400 ml-1 font-normal">(Optional)</span>
+                        </label>
+                        <Textarea
+                            placeholder={`Enter any special notes or instructions for this ${deliveryType === "DOCUMENT" ? "document" : "plate"} delivery...`}
+                            value={deliveryNote}
+                            onChange={(e) => setDeliveryNote(e.target.value)}
+                            rows={3}
+                            className="resize-none"
+                        />
+                    </div>
                 </div>
+
 
                 <DialogFooter>
                     <Button variant="outline" onClick={onClose} disabled={loading}>
