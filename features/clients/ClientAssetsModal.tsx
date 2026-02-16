@@ -21,6 +21,7 @@ interface ClientAssetsModalProps {
     client: Client | null;
 }
 
+const IMGBB_API_KEY = "a6736e3e38e68147b6f9d7b24d2f8d36";
 const MAX_FILE_SIZE_MB = 90;
 
 // Utility: Compress PDF
@@ -66,7 +67,7 @@ const uploadWithRetry = async (
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-            const response = await fetch("/api/upload", {
+            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
                 method: "POST",
                 body: formData,
             });

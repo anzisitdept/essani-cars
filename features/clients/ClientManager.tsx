@@ -125,16 +125,12 @@ export const ClientManager = () => {
       }
     }
 
-    const payload: any = {
+    const payload = {
       ...formData,
+      signatureUrl,
       updatedBy: user.uid,
       updatedAt: serverTimestamp()
     };
-
-    // Only include signatureUrl if it exists (Firestore doesn't allow undefined)
-    if (signatureUrl) {
-      payload.signatureUrl = signatureUrl;
-    }
 
     try {
       if (isEditing) {
