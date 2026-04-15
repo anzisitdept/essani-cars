@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import { VehicleGameCard } from "./VehicleGameCard";
 import { AssetsModal } from "@/features/assets/AssetsModal";
 import { DocumentDeliveryModal } from "./DocumentDeliveryModal";
 import { PlatesDeliveryModal } from "./PlatesDeliveryModal";
+import { InventoryReportModal } from "./InventoryReportModal";
 
 export const InventoryManager = () => {
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -30,9 +32,10 @@ export const InventoryManager = () => {
   const [deliveryVehicle, setDeliveryVehicle] = useState<any | null>(null); // State for Delivery Print Modal
   const [deliveryType, setDeliveryType] = useState<"DOCUMENT" | "PLATE" | null>(null); // Track delivery type
   const [assetsVehicle, setAssetsVehicle] = useState<any | null>(null); // State for Print Modal
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  // --- Filter States ---
-  const [searchTerm, setSearchTerm] = useState("");
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
   const [brandFilter, setBrandFilter] = useState("ALL");
   const [plateFilter, setPlateFilter] = useState("ALL");
   const [docFilter, setDocFilter] = useState("ALL");
@@ -50,6 +53,13 @@ export const InventoryManager = () => {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const s = searchParams.get("search");
+    if (s) {
+      setSearchTerm(s);
+    }
+  }, [searchParams]);
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this vehicle record? This cannot be undone.")) {
@@ -187,9 +197,19 @@ export const InventoryManager = () => {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
-            <Badge variant="outline" className="bg-white w-fit whitespace-nowrap">
-              {filteredVehicles.length} / {vehicles.length} Records
-            </Badge>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                className="bg-white hover:bg-slate-50 text-blue-600 border-blue-200"
+                onClick={() => setIsReportModalOpen(true)}
+              >
+                <Printer size={16} className="mr-2" />
+                Generate Report
+              </Button>
+              <Badge variant="outline" className="bg-white w-fit whitespace-nowrap">
+                {filteredVehicles.length} / {vehicles.length} Records
+              </Badge>
+            </div>
           </div>
 
           {/* Filters Row 1: Primary Filters */}
@@ -396,6 +416,19 @@ export const InventoryManager = () => {
           setDeliveryType(null);
         }}
         vehicle={deliveryVehicle}
+      />
+
+      {/* Inventory Report Modal */}
+      <InventoryReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        vehicles={vehicles}
+        currentFilters={{
+          docFilter,
+          plateFilter,
+          brandFilter,
+          registrationFilter
+        }}
       />
     </>
   );

@@ -129,8 +129,8 @@ export default function DashboardPage() {
         (h.action === 'Document Status Update' && h.details?.includes('to At Excise'))
       );
       if (!entry) return false;
-      const minutes = Math.ceil(Math.abs(now.getTime() - new Date(entry.timestamp).getTime()) / (60000));
-      return minutes > 2;
+      const days = Math.ceil(Math.abs(now.getTime() - new Date(entry.timestamp).getTime()) / (86400000));
+      return days > 15;
     }).map(c => {
       const entry = c.history?.slice().reverse().find(h =>
         (h.type === 'FILE' && h.status === 'At Excise') ||
@@ -138,7 +138,7 @@ export default function DashboardPage() {
       );
       return {
         ...c,
-        minutes: Math.ceil(Math.abs(now.getTime() - new Date(entry!.timestamp).getTime()) / (60000))
+        days: Math.ceil(Math.abs(now.getTime() - new Date(entry!.timestamp).getTime()) / (86400000))
       };
     });
 
@@ -236,7 +236,7 @@ export default function DashboardPage() {
                 {analytics.exciseOverdue.map(car => (
                   <div key={car.id} className="flex items-center justify-between p-3 bg-white border border-red-100 rounded-lg shadow-sm">
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xs">{car.minutes}D</div>
+                      <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xs">{car.days}D</div>
                       <div>
                         <div className="font-bold text-sm text-slate-800 flex items-center gap-2">
                           {car.brandName} {car.model}
@@ -245,7 +245,7 @@ export default function DashboardPage() {
                         <div className="text-xs text-slate-500 font-mono">{car.chassisNumber}</div>
                       </div>
                     </div>
-                    <Link href="/dashboard/inventory"><Button size="sm" variant="outline" className="h-7 text-xs">View</Button></Link>
+                    <Link href={`/dashboard/inventory?search=${car.chassisNumber}`}><Button size="sm" variant="outline" className="h-7 text-xs">View</Button></Link>
                   </div>
                 ))}
                 {/* Plate Alerts */}
@@ -261,7 +261,7 @@ export default function DashboardPage() {
                         <div className="text-xs text-slate-500 font-mono">{car.chassisNumber}</div>
                       </div>
                     </div>
-                    <Link href="/dashboard/inventory"><Button size="sm" variant="outline" className="h-7 text-xs">View</Button></Link>
+                    <Link href={`/dashboard/inventory?search=${car.chassisNumber}`}><Button size="sm" variant="outline" className="h-7 text-xs">View</Button></Link>
                   </div>
                 ))}
               </div>
