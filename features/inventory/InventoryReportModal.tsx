@@ -30,6 +30,7 @@ export const InventoryReportModal = ({ isOpen, onClose, vehicles, currentFilters
   // --- Dialog Filter States ---
   const [docFilter, setDocFilter] = useState("ALL");
   const [plateFilter, setPlateFilter] = useState("ALL");
+  const [notAvailableReasonFilter, setNotAvailableReasonFilter] = useState("ALL");
   const [regReasonFilter, setRegReasonFilter] = useState("ALL");
   const [regStatusFilter, setRegStatusFilter] = useState("ALL");
   const [brandFilter, setBrandFilter] = useState("ALL");
@@ -60,11 +61,20 @@ export const InventoryReportModal = ({ isOpen, onClose, vehicles, currentFilters
         (docFilter === "DELIVERED" && v.fileStatus?.toLowerCase().includes("delivered"));
 
       // 2. Plate Filter
-      const matchesPlate =
-        plateFilter === "ALL" ||
-        (plateFilter === "NOT_AVAILABLE" && (v.plateStatus === "Never Applied" || v.plateStatus === "Not Issued from Excise" || v.plateStatus === "At Party's Hand")) ||
-        (plateFilter === "SHOWROOM" && v.plateStatus === "Showroom") ||
-        (plateFilter === "DELIVERED" && v.plateStatus?.toLowerCase().includes("delivered"));
+      const matchesPlate = (() => {
+        if (plateFilter === "ALL") return true;
+        if (plateFilter === "NOT_AVAILABLE") {
+          const isNotAvail = v.plateStatus === "Never Applied" || v.plateStatus === "Not Issued from Excise" || v.plateStatus === "At Party's Hand";
+          if (!isNotAvail) return false;
+          if (notAvailableReasonFilter === "ALL") return true;
+          if (notAvailableReasonFilter === "NOT_ISSUED") return v.plateStatus === "Never Applied" || v.plateStatus === "Not Issued from Excise";
+          if (notAvailableReasonFilter === "AT_PARTY") return v.plateStatus === "At Party's Hand";
+          return true;
+        }
+        if (plateFilter === "SHOWROOM") return v.plateStatus === "Showroom";
+        if (plateFilter === "DELIVERED") return v.plateStatus?.toLowerCase().includes("delivered");
+        return false;
+      })();
 
       // 3. Reg Status Filter
       const matchesRegStatus =
@@ -80,11 +90,12 @@ export const InventoryReportModal = ({ isOpen, onClose, vehicles, currentFilters
 
       return matchesDoc && matchesPlate && matchesRegStatus && matchesRegReason && matchesBrand;
     });
-  }, [vehicles, docFilter, plateFilter, regStatusFilter, regReasonFilter, brandFilter]);
+  }, [vehicles, docFilter, plateFilter, notAvailableReasonFilter, regStatusFilter, regReasonFilter, brandFilter]);
 
   const resetFilters = () => {
     setDocFilter("ALL");
     setPlateFilter("ALL");
+    setNotAvailableReasonFilter("ALL");
     setRegReasonFilter("ALL");
     setRegStatusFilter("ALL");
     setBrandFilter("ALL");
@@ -193,7 +204,7 @@ export const InventoryReportModal = ({ isOpen, onClose, vehicles, currentFilters
       
       const filterSummary = [
         docFilter !== "ALL" && `Docs: ${docFilter}`,
-        plateFilter !== "ALL" && `Plates: ${plateFilter}`,
+        plateFilter !== "ALL" && `Plates: ${plateFilter}${plateFilter === 'NOT_AVAILABLE' && notAvailableReasonFilter !== 'ALL' ? ` (${notAvailableReasonFilter.replace('_', ' ')})` : ''}`,
         regStatusFilter !== "ALL" && `Status: ${regStatusFilter}`,
         brandFilter !== "ALL" && `Brand: ${brandFilter}`,
         regReasonFilter !== "ALL" && `Reason: ${regReasonFilter}`
@@ -319,19 +330,37 @@ export const InventoryReportModal = ({ isOpen, onClose, vehicles, currentFilters
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Plate Status</label>
-              <Select value={plateFilter} onValueChange={setPlateFilter}>
-                <SelectTrigger className="w-full bg-slate-50 border-slate-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="z-[100]">
-                  <SelectItem value="ALL">All Plates</SelectItem>
-                  <SelectItem value="NOT_AVAILABLE">Not Available</SelectItem>
-                  <SelectItem value="SHOWROOM">Showroom</SelectItem>
-                  <SelectItem value="DELIVERED">Delivered Only</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Plate Status</label>
+                <Select value={plateFilter} onValueChange={setPlateFilter}>
+                  <SelectTrigger className="w-full bg-slate-50 border-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100]">
+                    <SelectItem value="ALL">All Plates</SelectItem>
+                    <SelectItem value="NOT_AVAILABLE">Not Available</SelectItem>
+                    <SelectItem value="SHOWROOM">Showroom</SelectItem>
+                    <SelectItem value="DELIVERED">Delivered Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {plateFilter === "NOT_AVAILABLE" && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Not Available Reason</label>
+                  <Select value={notAvailableReasonFilter} onValueChange={setNotAvailableReasonFilter}>
+                    <SelectTrigger className="w-full bg-blue-50 border-blue-200 text-blue-900">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      <SelectItem value="ALL">All Reasons</SelectItem>
+                      <SelectItem value="NOT_ISSUED">Not Issued / Never Applied</SelectItem>
+                      <SelectItem value="AT_PARTY">At Party's Hand</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
 
