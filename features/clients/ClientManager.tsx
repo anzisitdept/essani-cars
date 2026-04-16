@@ -127,7 +127,7 @@ export const ClientManager = () => {
 
     const payload = {
       ...formData,
-      signatureUrl,
+      ...(signatureUrl !== undefined && { signatureUrl }),
       updatedBy: user.uid,
       updatedAt: serverTimestamp()
     };
