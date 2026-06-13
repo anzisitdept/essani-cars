@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
     CarFront, Calendar, Fuel, Zap, Ban, CheckCircle2,
     FileText, User, Printer, ScanBarcode, Pencil, Trash2,
-    ShieldCheck, Truck, AlertTriangle, Image as ImageIcon, Phone, Mail, CreditCard, MapPin, Settings2, Copy, Check
+    ShieldCheck, Truck, AlertTriangle, Image as ImageIcon, Phone, Mail, CreditCard, MapPin, Settings2, Copy, Check, Wrench, DollarSign
 } from "lucide-react";
 import { VehicleDetailModal } from "./VehicleDetailModal";
 import { DocStatusDialog } from "./DocStatusDialog";
@@ -24,7 +24,7 @@ interface VehicleGameCardProps {
     onPrintDelivery: (v: any, type: "DOCUMENT" | "PLATE") => void;
     onPrintBarcode: (v: any) => void;
     onOpenAssets: (v: any) => void;
-
+    onOpenExpenses?: (v: any) => void;
 }
 
 const ClientField = ({ label, value, icon: Icon }: { label: string, value?: string, icon: any }) => {
@@ -56,7 +56,7 @@ const ClientField = ({ label, value, icon: Icon }: { label: string, value?: stri
     );
 };
 
-export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPrintDelivery, onPrintBarcode, onOpenAssets }: VehicleGameCardProps) => {
+export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPrintDelivery, onPrintBarcode, onOpenAssets, onOpenExpenses }: VehicleGameCardProps) => {
     const [clientDetails, setClientDetails] = useState<any>({});
     const [loadingClients, setLoadingClients] = useState<Set<string>>(new Set());
     const [showDetail, setShowDetail] = useState(false);
@@ -190,8 +190,13 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                     </button>
                                 </div>
                                 {vehicle.registrationNumber && (
-                                    <span className="text-[15px] font-bold text-black bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                                    <span className="text-[15px] font-bold text-black bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded" title="Registration Number">
                                         {vehicle.registrationNumber}
+                                    </span>
+                                )}
+                                {vehicle.oldRegistrationNumber && (
+                                    <span className="text-[12px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded ml-1" title="Old Registration Number">
+                                        Old: {vehicle.oldRegistrationNumber}
                                     </span>
                                 )}
                             </div>
@@ -426,6 +431,14 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                 </span>
                             </div>
                         )}
+                        {vehicle.oldRegistrationNumber && (
+                            <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
+                                <span className="text-slate-500">OLD REG. NO:</span>
+                                <span className="text-slate-900 font-medium truncate max-w-[120px]" title={vehicle.oldRegistrationNumber}>
+                                    {vehicle.oldRegistrationNumber}
+                                </span>
+                            </div>
+                        )}
                         {vehicle.registeredOwnerCnic && (
                             <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
                                 <span className="text-slate-500">REG. OWNER CNIC:</span>
@@ -451,11 +464,73 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                             </div>
                         )}
                     </div>
+
+                    {/* Purchase Finance Summary - shown for "For Purchase" vehicles */}
+                    {vehicle.registrationReason === "For Purchase" && vehicle.purchasePrice && (
+                        <div className="mt-2 bg-gradient-to-br from-blue-50 to-slate-50 border border-blue-100 rounded p-2 font-mono text-[10px] space-y-1">
+                            <div className="flex items-center gap-1 pb-1 border-b border-blue-100">
+                                <DollarSign size={10} className="text-blue-500" />
+                                <span className="text-blue-600 font-bold uppercase tracking-wider">Purchase Finance</span>
+                                <span className={`ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold
+                                    ${vehicle.isPaid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                                    {vehicle.isPaid ? "PAID" : "UNPAID"}
+                                </span>
+                            </div>
+                            {vehicle.sellerClientName && (
+                                <div className="flex justify-between">
+                                    <span className="text-slate-500">SELLER:</span>
+                                    <span className="text-blue-700 font-medium">{vehicle.sellerClientName}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between">
+                                <span className="text-slate-500">PURCHASE:</span>
+                                <span className="text-slate-900 font-medium">Rs. {Number(vehicle.purchasePrice).toLocaleString()}</span>
+                            </div>
+                            {(vehicle.totalExpenses > 0) && (
+                                <div className="flex justify-between">
+                                    <span className="text-slate-500">EXPENSES:</span>
+                                    <span className="text-orange-700 font-medium">Rs. {Number(vehicle.totalExpenses).toLocaleString()}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between border-t border-blue-100 pt-1 mt-1">
+                                <span className="text-slate-500">COST BASIS:</span>
+                                <span className="text-blue-800 font-bold">Rs. {Number(vehicle.capitalizedCost || vehicle.purchasePrice).toLocaleString()}</span>
+                            </div>
+                            {vehicle.hasInvestor && vehicle.investorName && (
+                                <div className="flex justify-between border-t border-blue-100 pt-1 mt-1">
+                                    <span className="text-slate-500">INVESTOR:</span>
+                                    <span className="text-purple-700 font-medium">
+                                        {vehicle.investorName} · {vehicle.commissionType === "Percentage" ? vehicle.commissionValue + "%" : "Rs. " + Number(vehicle.commissionValue).toLocaleString()}
+                                    </span>
+                                </div>
+                            )}
+                            {vehicle.isSold && (
+                                <>
+                                    <div className="flex justify-between border-t border-blue-100 pt-1 mt-1">
+                                        <span className="text-slate-500">SALE PRICE:</span>
+                                        <span className="text-emerald-700 font-bold">Rs. {Number(vehicle.salePrice).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500">NET PROFIT:</span>
+                                        <span className={`font-bold ${Number(vehicle.netProfit) >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                                            Rs. {Number(vehicle.netProfit || 0).toLocaleString()}
+                                        </span>
+                                    </div>
+                                    {vehicle.buyerName && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-500">BUYER:</span>
+                                            <span className="text-slate-900 font-medium">{vehicle.buyerName}</span>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* --- 5. Action Footer --- */}
-                <div className="mt-auto p-3 border-t border-slate-100 bg-slate-50/50 flex gap-2">
-                    <Button onClick={() => onPrintDetail(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50">
+                <div className="mt-auto p-3 border-t border-slate-100 bg-slate-50/50 flex flex-wrap gap-1.5">
+                    <Button onClick={() => onPrintDetail(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50" title="Print Detail">
                         <Printer size={16} />
                     </Button>
                     {vehicle.fileStatus?.toLowerCase().includes('delivered') && (
@@ -468,12 +543,34 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                             <CreditCard size={16} />
                         </Button>
                     )}
-                    <Button onClick={() => onPrintBarcode(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-yellow-600 hover:bg-yellow-50">
+                    <Button onClick={() => onPrintBarcode(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-yellow-600 hover:bg-yellow-50" title="Print Barcode">
                         <ScanBarcode size={16} />
                     </Button>
                     <Button onClick={() => onOpenAssets(vehicle)} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-purple-600 hover:bg-purple-50" title="Manage Assets">
                         <ImageIcon size={16} />
                     </Button>
+
+                    {/* Expenses button — only for Purchase vehicles with a linked account */}
+                    {vehicle.registrationReason === "For Purchase" && onOpenExpenses && !vehicle.isSold && (
+                        <Button
+                            onClick={() => onOpenExpenses(vehicle)}
+                            variant="ghost" size="icon"
+                            className="h-8 w-8 text-slate-400 hover:text-orange-600 hover:bg-orange-50"
+                            title="Record Vehicle Expenses"
+                        >
+                            <Wrench size={16} />
+                        </Button>
+                    )}
+
+
+
+                    {/* Sold badge */}
+                    {vehicle.isSold && (
+                        <span className="h-8 px-2 flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded gap-1">
+                            <CheckCircle2 size={11} /> SOLD
+                        </span>
+                    )}
+
                     <div className="ml-auto flex gap-2">
                         <Button onClick={() => onEdit(vehicle)} variant="ghost" size="sm" className="h-8 text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-200">
                             <Pencil size={12} className="mr-1" /> EDIT

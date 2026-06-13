@@ -3,6 +3,7 @@ import { doc, updateDoc, serverTimestamp, addDoc, collection } from "firebase/fi
 import { db } from "@/lib/firebase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { addToHistory } from "@/utils/vehicleHistory";
 import { Building2, Truck, Hand, PackageOpen } from "lucide-react";
@@ -22,6 +23,7 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
     const [loading, setLoading] = useState(false);
     const [method, setMethod] = useState<string>("hand");
     const [details, setDetails] = useState<string>("");
+    const [newRegNo, setNewRegNo] = useState<string>("");
 
     const handleConfirm = async () => {
         if (!user || !vehicle) return;
@@ -32,18 +34,28 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
 
         try {
             // Update vehicle document status and return details
-            await updateDoc(doc(db, "cars", vehicle.id), {
+            const updateData: any = {
                 fileStatus: newStatus,
                 returnedToShowroomMethod: methodLabel,
                 returnedToShowroomDetails: details,
                 updatedAt: serverTimestamp()
-            });
+            };
+
+            const updatedRegNo = newRegNo.trim().toUpperCase();
+            if (updatedRegNo) {
+                if (vehicle.registrationNumber) {
+                    updateData.oldRegistrationNumber = vehicle.registrationNumber;
+                }
+                updateData.registrationNumber = updatedRegNo;
+            }
+
+            await updateDoc(doc(db, "cars", vehicle.id), updateData);
 
             // Log the action
             await addDoc(collection(db, "logs"), {
                 action: `Updated Doc Status: ${newStatus}`,
                 vehicleId: vehicle.id,
-                details: `Returned via ${methodLabel}. Details: ${details}`,
+                details: `Returned via ${methodLabel}. Details: ${details}${updatedRegNo ? `. New Reg No: ${updatedRegNo}` : ""}`,
                 performedBy: user.uid,
                 timestamp: serverTimestamp(),
                 type: "STATUS_UPDATE"
@@ -53,13 +65,17 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
             await addToHistory(
                 vehicle.id,
                 "Document Returned to Showroom",
-                `Returned via ${methodLabel}`,
+                `Returned via ${methodLabel}${updatedRegNo ? `. New Reg No: ${updatedRegNo}` : ""}`,
                 user.uid,
                 {
                     type: "FILE",
                     status: newStatus,
                     method: methodLabel,
-                    details: details
+                    details: details,
+                    ...(updatedRegNo && {
+                        newRegistrationNumber: updatedRegNo,
+                        oldRegistrationNumber: vehicle.registrationNumber || ""
+                    })
                 }
             );
 
@@ -110,6 +126,17 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
                                 </Label>
                             </div>
                         </RadioGroup>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="newRegNo" className="text-base font-semibold">New Registration No. (Optional)</Label>
+                        <Input
+                            id="newRegNo"
+                            placeholder="Enter new registration number..."
+                            value={newRegNo}
+                            onChange={(e) => setNewRegNo(e.target.value)}
+                            className="font-mono uppercase"
+                        />
                     </div>
 
                     <div className="space-y-3">

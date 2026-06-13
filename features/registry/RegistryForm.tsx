@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, FormEvent } from "react";
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, where } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,8 @@ export const RegistryForm = () => {
   const [vehicleSource, setVehicleSource] = useState<"Local" | "Imported">("Local");
   const [registrationReason, setRegistrationReason] = useState<"For Purchase" | "For Transfer" | "For Registration">("For Purchase");
 
+
+
   // Derived State
   const availableVariants = models.find(m => m.name === selectedModelName)?.variants || [];
 
@@ -77,6 +79,8 @@ export const RegistryForm = () => {
     });
     return () => unsubscribe();
   }, []);
+
+
 
   // Fetch Models when Brand changes
   useEffect(() => {
@@ -219,7 +223,49 @@ export const RegistryForm = () => {
     };
 
     try {
-      await addDoc(collection(db, "cars"), vehicleData);
+      // 1. Get or create "Vehicle Asset" account type
+      let vehicleAssetTypeId = "";
+      const typeQuery = query(collection(db, "account-types"), where("name", "==", "Vehicle Asset"));
+      const typeSnapshot = await getDocs(typeQuery);
+      if (!typeSnapshot.empty) {
+        vehicleAssetTypeId = typeSnapshot.docs[0].id;
+      } else {
+        const typeRef = await addDoc(collection(db, "account-types"), {
+          name: "Vehicle Asset",
+          description: "Accounts to track vehicle assets and capitalize costs",
+          createdAt: serverTimestamp(),
+          createdBy: user.uid
+        });
+        vehicleAssetTypeId = typeRef.id;
+      }
+
+      // 2. Auto-create vehicle ledger account (balance 0 — Purchase Invoice sets the price)
+      const chassisNo = formData.get("chassisNumber") as string;
+      const lastFourChassis = chassisNo.slice(-4) || "0000";
+      const vehicleAccountName = `Vehicle: ${brandName} ${selectedModelName} (${lastFourChassis})`;
+
+      const vehicleAccountRef = await addDoc(collection(db, "accounts"), {
+        name: vehicleAccountName,
+        typeId: vehicleAssetTypeId,
+        typeName: "Vehicle Asset",
+        balance: 0,
+        description: `Auto-created ledger account for vehicle: ${brandName} ${selectedModelName} - Chassis: ${chassisNo}`,
+        createdAt: serverTimestamp(),
+        createdBy: user.uid,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+      });
+
+      // 3. Save vehicle with account reference — financial details handled via Purchase Invoice
+      await addDoc(collection(db, "cars"), {
+        ...vehicleData,
+        vehicleAccountId: vehicleAccountRef.id,
+        vehicleAccountName,
+        totalExpenses: 0,
+        capitalizedCost: 0,
+        publishedToWeb: false
+      });
+
       await addDoc(collection(db, "logs"), {
         action: `Registered: ${brandName} ${selectedModelName}`,
         details: `Barcode: ${barcode}`,
@@ -241,6 +287,8 @@ export const RegistryForm = () => {
       setPlateUnavailableReason("Not Issued from Excise");
       setRegistrationReason("For Purchase");
       setVehicleSource("Local");
+
+
 
     } catch (error) {
       console.error("Registration Error:", error);
@@ -574,6 +622,9 @@ export const RegistryForm = () => {
               )}
             </div>
           </div>
+
+
+
 
 
           {/* 4. Ownership (Client Link) - Updated for Dual Ownership */}

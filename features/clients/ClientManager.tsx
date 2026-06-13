@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, FormEvent, useRef } from "react";
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ interface Client {
   address?: string;
   assets?: string[];
   signatureUrl?: string; // Signature image URL
+  accountId?: string; // Associated auto-created cash account ID
 }
 
 export const ClientManager = () => {
@@ -135,9 +136,77 @@ export const ClientManager = () => {
     try {
       if (isEditing) {
         await updateDoc(doc(db, "clients", isEditing), payload);
+
+        // Sync account name if they update the client
+        const currentClient = clients.find(c => c.id === isEditing);
+        if (currentClient?.accountId) {
+          const cleanPhone = formData.phone.replace(/\D/g, '');
+          const lastFour = cleanPhone.slice(-4) || '0000';
+          const newAccountName = `${formData.name.trim()} (${lastFour})`;
+
+          await updateDoc(doc(db, "accounts", currentClient.accountId), {
+            name: newAccountName,
+            updatedBy: user.uid,
+            updatedAt: serverTimestamp()
+          });
+        }
       } else {
+        // Find or create "Client" Account Type
+        let clientTypeId = "";
+        const qTypes = query(collection(db, "account-types"), where("name", "==", "Client"));
+        const snapshotTypes = await getDocs(qTypes);
+        if (!snapshotTypes.empty) {
+          clientTypeId = snapshotTypes.docs[0].id;
+        } else {
+          // Create "Client" Account Type dynamically if it doesn't exist
+          const typeRef = await addDoc(collection(db, "account-types"), {
+            name: "Client",
+            description: "Accounts for Client transactions and balances",
+            createdAt: serverTimestamp(),
+            createdBy: user.uid
+          });
+          clientTypeId = typeRef.id;
+        }
+
+        // Generate unique account name using last 4 digits of phone
+        const cleanPhone = formData.phone.replace(/\D/g, '');
+        const lastFour = cleanPhone.slice(-4) || '0000';
+        const accountName = `${formData.name.trim()} (${lastFour})`;
+
+        // Check if an account with this name already exists
+        let accountId = "";
+        const qAccs = query(collection(db, "accounts"), where("name", "==", accountName));
+        const snapshotAccs = await getDocs(qAccs);
+
+        if (!snapshotAccs.empty) {
+          accountId = snapshotAccs.docs[0].id;
+        } else {
+          // Create new account under "Client" Account Type
+          const accRef = await addDoc(collection(db, "accounts"), {
+            name: accountName,
+            typeId: clientTypeId,
+            typeName: "Client",
+            balance: 0,
+            description: `Auto-created account for client: ${formData.name}`,
+            createdAt: serverTimestamp(),
+            createdBy: user.uid,
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid
+          });
+          accountId = accRef.id;
+
+          // Add creation logs
+          await addDoc(collection(db, "logs"), {
+            action: `Created account: ${accountName} (Client) - Auto-created from Client profile`,
+            performedBy: user.uid,
+            timestamp: serverTimestamp(),
+            type: "ADMIN_ACTION"
+          });
+        }
+
         await addDoc(collection(db, "clients"), {
           ...payload,
+          accountId,
           createdBy: user.uid,
           createdAt: serverTimestamp()
         });
