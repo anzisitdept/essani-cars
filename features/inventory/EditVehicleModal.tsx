@@ -294,10 +294,14 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
                   <Input value={formData.engineNumber || ""} onChange={e => handleChange("engineNumber", e.target.value)} className="font-mono uppercase" />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-500">Registration No.</label>
                   <Input value={formData.registrationNumber || ""} onChange={e => handleChange("registrationNumber", e.target.value)} className="font-mono uppercase" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Old Registration No.</label>
+                  <Input value={formData.oldRegistrationNumber || ""} onChange={e => handleChange("oldRegistrationNumber", e.target.value)} className="font-mono uppercase" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-500">CPLC Counter</label>

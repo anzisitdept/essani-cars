@@ -111,6 +111,12 @@ export const VehicleDeliveryModal = ({ isOpen, onClose, vehicle }: VehicleDelive
                             <div className="font-mono text-lg font-bold bg-white border border-slate-200 px-3 py-1 inline-block rounded">
                                 {vehicle.registrationNumber || "UNREGISTERED"}
                             </div>
+                            {vehicle.oldRegistrationNumber && (
+                                <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                                    <span className="font-bold uppercase text-[9px] text-slate-400">Old Reg:</span>
+                                    <span className="font-mono font-semibold">{vehicle.oldRegistrationNumber}</span>
+                                </div>
+                            )}
                         </div>
                         <div>
                             <p className="text-xs text-slate-500 uppercase font-bold mb-1">Chassis No.</p>

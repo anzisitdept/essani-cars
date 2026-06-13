@@ -103,6 +103,14 @@ export const VehicleDetailModal = ({ isOpen, onClose, vehicle }: VehicleDetailMo
                     <div className="font-mono text-lg font-bold bg-white border border-slate-200 px-3 py-1 inline-block rounded">
                         {vehicle.registrationNumber || "UNREGISTERED"}
                     </div>
+                    {vehicle.oldRegistrationNumber && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                            <span className="text-[10px] text-slate-400 uppercase font-bold">Old Reg No:</span>
+                            <span className="font-mono text-xs font-semibold bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded inline-block">
+                                {vehicle.oldRegistrationNumber}
+                            </span>
+                        </div>
+                    )}
                 </div>
                 <div>
                     <p className="text-xs text-slate-500 uppercase font-bold mb-1">Model Year</p>
@@ -138,6 +146,7 @@ export const VehicleDetailModal = ({ isOpen, onClose, vehicle }: VehicleDetailMo
             <div className="space-y-1">
                 <DetailRow label="File Status" value={vehicle.fileStatus} />
                 <DetailRow label="Plate Status" value={vehicle.plateStatus} />
+                {vehicle.oldRegistrationNumber && <DetailRow label="Old Registration No." value={vehicle.oldRegistrationNumber} />}
                 <DetailRow label="CPLC Counter" value={vehicle.cplcCounter} />
                 <DetailRow label="Registered Year" value={vehicle.registrationYear} />
             </div>

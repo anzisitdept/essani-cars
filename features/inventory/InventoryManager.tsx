@@ -23,6 +23,7 @@ import { AssetsModal } from "@/features/assets/AssetsModal";
 import { DocumentDeliveryModal } from "./DocumentDeliveryModal";
 import { PlatesDeliveryModal } from "./PlatesDeliveryModal";
 import { InventoryReportModal } from "./InventoryReportModal";
+import { VehicleExpensesModal } from "./VehicleExpensesModal";
 
 export const InventoryManager = () => {
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -33,6 +34,7 @@ export const InventoryManager = () => {
   const [deliveryType, setDeliveryType] = useState<"DOCUMENT" | "PLATE" | null>(null); // Track delivery type
   const [assetsVehicle, setAssetsVehicle] = useState<any | null>(null); // State for Print Modal
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [expensesVehicle, setExpensesVehicle] = useState<any | null>(null); // Expenses modal
 
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
@@ -352,6 +354,7 @@ export const InventoryManager = () => {
                 }}
                 onPrintBarcode={setBarcodeVehicle}
                 onOpenAssets={setAssetsVehicle}
+                onOpenExpenses={setExpensesVehicle}
               />
             ))}
           </div>
@@ -430,6 +433,15 @@ export const InventoryManager = () => {
           registrationFilter
         }}
       />
+
+      {/* Vehicle Expenses Modal */}
+      <VehicleExpensesModal
+        isOpen={!!expensesVehicle}
+        onClose={() => setExpensesVehicle(null)}
+        vehicle={expensesVehicle}
+      />
+
+
     </>
   );
 };
