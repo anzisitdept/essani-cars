@@ -2,7 +2,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Database, Settings, PlusCircle, Car, FileText, LogOut, Users, LucideIcon, BarChart3, Shield, Truck, ChevronLeft, ChevronRight, X, UserCircle, History, Wallet, Layers, Receipt, ArrowLeftRight, BookOpen, ShoppingCart, PackagePlus } from "lucide-react";
+import { LayoutDashboard, Database, Settings, PlusCircle, Car, FileText, LogOut, Users, LucideIcon, BarChart3, Shield, Truck, ChevronLeft, ChevronRight, X, UserCircle, History, Wallet, Layers, Receipt, ArrowLeftRight, BookOpen, ShoppingCart, PackagePlus, Landmark } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,8 +30,9 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
     { href: '/dashboard/registry', label: 'New Registration', icon: PlusCircle, permissionId: 'registry' },
     { href: '/dashboard/clients', label: 'Manage Clients', icon: UserCircle, permissionId: 'clients' },
     { href: '/dashboard/investors', label: 'Manage Investors', icon: Users, permissionId: 'investors' },
-    { href: '/dashboard/accounts', label: 'Accounts', icon: Wallet, permissionId: 'accounts' },
+    { href: '/dashboard/banks', label: 'Manage Banks', icon: Landmark },
     { href: '/dashboard/account-types', label: 'Account Types', icon: Layers, permissionId: 'account_types' },
+    { href: '/dashboard/accounts', label: 'Accounts', icon: Wallet, permissionId: 'accounts' },
     { href: '/dashboard/cash-voucher', label: 'Cash Voucher', icon: Receipt, permissionId: 'cash_voucher' },
     { href: '/dashboard/general-voucher', label: 'General Voucher', icon: ArrowLeftRight, permissionId: 'general_voucher' },
     { href: '/dashboard/general-ledger', label: 'General Ledger', icon: BookOpen, permissionId: 'general_ledger' },

@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Search, Plus, Pencil, Trash2, Wallet, X, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Wallet, X, CheckCircle2, AlertTriangle, Store, UserSquare, Phone, CreditCard, FileImage } from "lucide-react";
 import Link from "next/link";
 
 interface Account {
@@ -23,6 +23,11 @@ interface Account {
   typeName: string;
   balance: number;
   description?: string;
+  shopName?: string;
+  fatherName?: string;
+  phoneNumber?: string;
+  cnic?: string;
+  cnicPicture?: string;
   createdAt: any;
 }
 
@@ -46,8 +51,14 @@ export const AccountsManager = () => {
     name: "",
     typeId: "",
     balance: "0",
-    description: ""
+    description: "",
+    shopName: "",
+    fatherName: "",
+    phoneNumber: "",
+    cnic: "",
+    cnicPicture: ""
   });
+  const [cnicFile, setCnicFile] = useState<File | null>(null);
 
   // Fetch Accounts and Account Types
   useEffect(() => {
@@ -68,7 +79,18 @@ export const AccountsManager = () => {
   }, []);
 
   const resetForm = () => {
-    setFormData({ name: "", typeId: "", balance: "0", description: "" });
+    setFormData({ 
+      name: "", 
+      typeId: "", 
+      balance: "0", 
+      description: "",
+      shopName: "",
+      fatherName: "",
+      phoneNumber: "",
+      cnic: "",
+      cnicPicture: ""
+    });
+    setCnicFile(null);
     setIsEditing(null);
     setMessage("");
   };
@@ -78,8 +100,14 @@ export const AccountsManager = () => {
       name: account.name,
       typeId: account.typeId,
       balance: account.balance.toString(),
-      description: account.description || ""
+      description: account.description || "",
+      shopName: account.shopName || "",
+      fatherName: account.fatherName || "",
+      phoneNumber: account.phoneNumber || "",
+      cnic: account.cnic || "",
+      cnicPicture: account.cnicPicture || ""
     });
+    setCnicFile(null);
     setIsEditing(account.id);
     setMessage("");
   };
@@ -127,12 +155,43 @@ export const AccountsManager = () => {
       const selectedType = accountTypes.find(t => t.id === formData.typeId);
       const typeName = selectedType ? selectedType.name : "Unknown";
 
+      if (typeName.toLowerCase() !== "bank" && !formData.phoneNumber.trim()) {
+        setMessage("Error: Phone number is required for this account type");
+        setLoading(false);
+        return;
+      }
+
+      let cnicPicUrl = formData.cnicPicture;
+      if (cnicFile) {
+        const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+        if (!apiKey) throw new Error("ImgBB API key is not configured.");
+        
+        const form = new FormData();
+        form.append("image", cnicFile);
+        
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+          method: "POST",
+          body: form
+        });
+        const data = await res.json();
+        if (data.success) {
+          cnicPicUrl = data.data.url;
+        } else {
+          throw new Error(data.error?.message || "Failed to upload image to ImgBB");
+        }
+      }
+
       const payload = {
         name: formData.name.trim(),
         typeId: formData.typeId,
         typeName: typeName,
         balance: parseFloat(formData.balance) || 0,
         description: formData.description.trim(),
+        shopName: formData.shopName.trim(),
+        fatherName: formData.fatherName.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
+        cnic: formData.cnic.trim(),
+        cnicPicture: cnicPicUrl,
         updatedBy: user.uid,
         updatedAt: serverTimestamp()
       };
@@ -220,10 +279,16 @@ export const AccountsManager = () => {
 
   const filteredAccounts = accounts.filter(a => {
     const matchesSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (a.description && a.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      (a.description && a.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (a.shopName && a.shopName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (a.phoneNumber && a.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesType = typeFilter === "ALL" || a.typeId === typeFilter;
     return matchesSearch && matchesType;
   });
+
+  const selectedTypeObj = accountTypes.find(t => t.id === formData.typeId);
+  const isBankSelected = selectedTypeObj?.name.toLowerCase() === "bank";
+  const showExtraFields = formData.typeId && !isBankSelected;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto">
@@ -281,6 +346,61 @@ export const AccountsManager = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {showExtraFields && (
+              <div className="space-y-4 p-4 border rounded-xl bg-slate-50/50 mt-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                    <Store size={12} /> Shop Name
+                  </label>
+                  <Input value={formData.shopName} onChange={e => setFormData({ ...formData, shopName: e.target.value })} placeholder="Shop / Business Name" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                    <UserSquare size={12} /> Father Name
+                  </label>
+                  <Input value={formData.fatherName} onChange={e => setFormData({ ...formData, fatherName: e.target.value })} placeholder="Father's Name" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                    <Phone size={12} /> Phone Number *
+                  </label>
+                  <Input required value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} placeholder="e.g. 03001234567" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                    <CreditCard size={12} /> CNIC / ID
+                  </label>
+                  <Input value={formData.cnic} onChange={e => setFormData({ ...formData, cnic: e.target.value })} placeholder="XXXXX-XXXXXXX-X" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                    <FileImage size={12} /> CNIC Picture / Scan
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={e => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          setCnicFile(e.target.files[0]);
+                        }
+                      }} 
+                      className="file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
+                  {(formData.cnicPicture || cnicFile) && (
+                    <div className="text-[10px] text-green-600 font-medium flex items-center gap-1 mt-1">
+                      <CheckCircle2 size={12} /> {cnicFile ? "New image selected" : "Image previously uploaded"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="text-xs font-medium text-slate-500 block">
@@ -349,6 +469,18 @@ export const AccountsManager = () => {
                       {account.typeName}
                     </span>
                   </div>
+                  {account.shopName && (
+                    <div className="text-xs text-blue-700 mt-1 flex gap-2 font-semibold">
+                      Shop: {account.shopName}
+                    </div>
+                  )}
+                  {(account.phoneNumber || account.fatherName || account.cnic) && (
+                    <div className="text-[11px] text-slate-600 mt-1 space-x-2">
+                      {account.phoneNumber && <span>📞 {account.phoneNumber}</span>}
+                      {account.fatherName && <span>👤 S/O {account.fatherName}</span>}
+                      {account.cnic && <span>🪪 {account.cnic}</span>}
+                    </div>
+                  )}
                   {account.description && (
                     <p className="text-xs text-slate-500 mt-0.5">
                       {account.description}

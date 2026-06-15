@@ -6,23 +6,14 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, Plus, Pencil, Trash2, Layers, X, CheckCircle2, RefreshCw } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Layers, X, CheckCircle2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface AccountType {
   id: string;
   name: string;
-  description?: string;
   createdAt: any;
 }
-
-const DEFAULT_TYPES = [
-  { name: "Cash in hand", description: "Physical cash reserves, petty cash, and drawer cash" },
-  { name: "Bank", description: "Checking, savings, or current bank accounts" },
-  { name: "Investor", description: "Accounts for business investors and shareholders" },
-  { name: "Expense", description: "Direct and indirect business operational expenses" },
-  { name: "Other", description: "Other general accounts and miscellaneous categories" }
-];
-
 export const AccountTypesManager = () => {
   const { user } = useAuth();
   const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
@@ -31,10 +22,12 @@ export const AccountTypesManager = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [typeToDelete, setTypeToDelete] = useState<{id: string, name: string} | null>(null);
+
   // Form State
   const [formData, setFormData] = useState({
-    name: "",
-    description: ""
+    name: ""
   });
 
   // Fetch Account Types
@@ -47,86 +40,47 @@ export const AccountTypesManager = () => {
   }, []);
 
   const resetForm = () => {
-    setFormData({ name: "", description: "" });
+    setFormData({ name: "" });
     setIsEditing(null);
     setMessage("");
   };
 
   const handleEdit = (type: AccountType) => {
     setFormData({
-      name: type.name,
-      description: type.description || ""
+      name: type.name
     });
     setIsEditing(type.id);
     setMessage("");
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (confirm(`Are you sure you want to delete the account type "${name}"? Accounts using this type may experience issues.`)) {
-      try {
-        await deleteDoc(doc(db, "account-types", id));
-        
-        // Log activity
-        if (user) {
-          await addDoc(collection(db, "logs"), {
-            action: `Deleted account type: ${name}`,
-            performedBy: user.uid,
-            timestamp: serverTimestamp(),
-            type: "ADMIN_ACTION"
-          });
-        }
-        
-        setMessage("Success: Account type deleted successfully.");
-      } catch (error: any) {
-        console.error("Error deleting account type:", error);
-        setMessage(`Error: ${error.message}`);
-      }
-    }
+  const confirmDelete = (id: string, name: string) => {
+    setTypeToDelete({ id, name });
+    setDeleteDialogOpen(true);
   };
 
-  const handleSeedDefaults = async () => {
-    if (!user) return;
-    setLoading(true);
-    setMessage("");
+  const executeDelete = async () => {
+    if (!typeToDelete) return;
+    
     try {
-      const batch = writeBatch(db);
-      const collectionRef = collection(db, "account-types");
-
-      // Verify what currently exists to prevent duplicate names
-      const existingNames = new Set(accountTypes.map(t => t.name.toLowerCase()));
-      let addedCount = 0;
-
-      DEFAULT_TYPES.forEach(item => {
-        if (!existingNames.has(item.name.toLowerCase())) {
-          const docRef = doc(collectionRef); // Generate auto id
-          batch.set(docRef, {
-            ...item,
-            createdBy: user.uid,
-            createdAt: serverTimestamp()
-          });
-          addedCount++;
-        }
-      });
-
-      if (addedCount > 0) {
-        await batch.commit();
-        
+      await deleteDoc(doc(db, "account-types", typeToDelete.id));
+      
+      // Log activity
+      if (user) {
         await addDoc(collection(db, "logs"), {
-          action: `Seeded ${addedCount} default account types`,
+          action: `Deleted account type: ${typeToDelete.name}`,
           performedBy: user.uid,
           timestamp: serverTimestamp(),
           type: "ADMIN_ACTION"
         });
-
-        setMessage(`Success: Seeded ${addedCount} default account types.`);
-      } else {
-        setMessage("Note: Default account types already exist.");
       }
+      
+      setMessage("Success: Account type deleted successfully.");
     } catch (error: any) {
-      console.error("Error seeding account types:", error);
+      console.error("Error deleting account type:", error);
       setMessage(`Error: ${error.message}`);
     } finally {
-      setLoading(false);
+      setDeleteDialogOpen(false);
+      setTypeToDelete(null);
     }
   };
 
@@ -145,7 +99,6 @@ export const AccountTypesManager = () => {
     try {
       const payload = {
         name: formData.name.trim(),
-        description: formData.description.trim(),
         updatedBy: user.uid,
         updatedAt: serverTimestamp()
       };
@@ -195,8 +148,7 @@ export const AccountTypesManager = () => {
   };
 
   const filteredTypes = accountTypes.filter(t =>
-    t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    t.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -227,22 +179,10 @@ export const AccountTypesManager = () => {
             <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Cash in hand, Bank, Investor" />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-500">
-              Description
-            </label>
-            <Input value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Brief description (optional)" />
-          </div>
-
           <div className="flex gap-2 pt-2">
             <Button type="submit" className="flex-1 bg-slate-900" disabled={loading}>
               {isEditing ? "Update Type" : "Add Type"}
             </Button>
-            {!isEditing && (
-              <Button type="button" variant="outline" onClick={handleSeedDefaults} disabled={loading} title="Seed Default Account Types" className="flex items-center gap-1.5">
-                <RefreshCw size={14} /> Seed Default
-              </Button>
-            )}
           </div>
         </form>
       </Card>
@@ -275,11 +215,6 @@ export const AccountTypesManager = () => {
                   <h4 className="font-semibold text-slate-900">
                     {type.name}
                   </h4>
-                  {type.description && (
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {type.description}
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -287,7 +222,7 @@ export const AccountTypesManager = () => {
                 <Button variant="ghost" size="sm" onClick={() => handleEdit(type)} title="Edit">
                   <Pencil size={16} className="text-blue-600" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(type.id, type.name)} title="Delete">
+                <Button variant="ghost" size="sm" onClick={() => confirmDelete(type.id, type.name)} title="Delete">
                   <Trash2 size={16} className="text-red-500" />
                 </Button>
               </div>
@@ -296,11 +231,26 @@ export const AccountTypesManager = () => {
 
           {filteredTypes.length === 0 && (
             <div className="text-center py-12 text-slate-400">
-              <p>No account types found. Add a custom one or click &quot;Seed Default&quot; to populate standard types.</p>
+              <p>No account types found.</p>
             </div>
           )}
         </div>
       </Card>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Account Type</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the account type "{typeToDelete?.name}"? Accounts currently using this type may experience issues. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={executeDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
