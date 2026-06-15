@@ -54,6 +54,7 @@ export const BanksManager = () => {
     name: "",
     typeId: "bank",
     balance: "0",
+    balanceType: "debit",
     description: "",
     accountNumber: "",
     iban: "",
@@ -92,6 +93,7 @@ export const BanksManager = () => {
       name: "", 
       typeId: "bank", 
       balance: "0", 
+      balanceType: "debit",
       description: "",
       accountNumber: "",
       iban: "",
@@ -108,10 +110,12 @@ export const BanksManager = () => {
   };
 
   const handleEdit = (account: Account) => {
+    const isCredit = account.balance < 0;
     setFormData({
       name: account.name,
       typeId: account.typeId,
-      balance: account.balance.toString(),
+      balance: Math.abs(account.balance).toString(),
+      balanceType: isCredit ? "credit" : "debit",
       description: account.description || "",
       accountNumber: account.accountNumber || "",
       iban: account.iban || "",
@@ -182,11 +186,14 @@ export const BanksManager = () => {
       const selectedType = hardcodedAccountTypes.find(t => t.id === formData.typeId);
       const typeName = selectedType ? selectedType.name : "Unknown";
 
+      const enteredBalance = parseFloat(formData.balance) || 0;
+      const finalBalance = formData.balanceType === "credit" ? -Math.abs(enteredBalance) : Math.abs(enteredBalance);
+
       const payload = {
         name: formData.name.trim(),
         typeId: formData.typeId,
         typeName: typeName,
-        balance: parseFloat(formData.balance) || 0,
+        balance: finalBalance,
         description: formData.description.trim(),
         accountNumber: formData.accountNumber.trim(),
         iban: formData.iban.trim(),
@@ -227,7 +234,7 @@ export const BanksManager = () => {
         });
 
         // Opening Balance voucher
-        const initialBal = parseFloat(formData.balance) || 0;
+        const initialBal = finalBalance;
         if (initialBal !== 0) {
           const today = new Date().toISOString().split("T")[0];
           await addDoc(collection(db, "vouchers"), {
@@ -260,7 +267,7 @@ export const BanksManager = () => {
         }
 
         await addDoc(collection(db, "logs"), {
-          action: `Created bank/special account: ${formData.name} (${typeName})`,
+          action: `Created bank/special account: ${formData.name} (${typeName})${initialBal ? ` with opening balance Rs. ${Math.abs(initialBal).toLocaleString()} (${initialBal > 0 ? 'Dr' : 'Cr'})` : ""}`,
           performedBy: user.uid,
           timestamp: serverTimestamp(),
           type: "ADMIN_ACTION"
@@ -412,7 +419,29 @@ export const BanksManager = () => {
             <label className="text-xs font-medium text-slate-500 block">
               Initial Balance / Current Balance
             </label>
-            <Input type="number" step="0.01" value={formData.balance} onChange={e => setFormData({ ...formData, balance: e.target.value })} placeholder="0.00" />
+            <div className="flex gap-2">
+              <Input 
+                type="number" 
+                step="0.01" 
+                min="0"
+                value={formData.balance} 
+                onChange={e => setFormData({ ...formData, balance: e.target.value })} 
+                placeholder="0.00" 
+                className="flex-1"
+              />
+              <Select 
+                value={formData.balanceType} 
+                onValueChange={(val) => setFormData(prev => ({ ...prev, balanceType: val }))}
+              >
+                <SelectTrigger className="w-[120px] bg-white">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="debit">Debit (Dr)</SelectItem>
+                  <SelectItem value="credit">Credit (Cr)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -507,8 +536,8 @@ export const BanksManager = () => {
 
               <div className="flex items-center gap-4">
                 <div className="text-right shrink-0">
-                  <div className="text-sm font-bold text-slate-900">
-                    Rs. {account.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className={`text-sm font-bold ${account.balance < 0 ? "text-red-600" : "text-slate-900"}`}>
+                    Rs. {Math.abs(account.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {account.balance < 0 ? "Cr" : "Dr"}
                   </div>
                   <div className="text-[10px] text-slate-400">Balance</div>
                 </div>
