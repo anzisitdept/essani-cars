@@ -38,6 +38,7 @@ const AVAILABLE_PERMISSIONS = [
     { id: 'delivery', label: 'Delivery Management', path: '/dashboard/delivery' },
     { id: 'clients', label: 'Client Management', path: '/dashboard/clients' },
     { id: 'investors', label: 'Investor Management', path: '/dashboard/investors' },
+    { id: 'banks', label: 'Bank Management', path: '/dashboard/banks' },
     { id: 'accounts', label: 'Accounts Management', path: '/dashboard/accounts' },
     { id: 'account_types', label: 'Account Types Management', path: '/dashboard/account-types' },
     { id: 'cash_voucher', label: 'Cash Voucher Management', path: '/dashboard/cash-voucher' },

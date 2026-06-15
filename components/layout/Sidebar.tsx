@@ -2,7 +2,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Database, Settings, PlusCircle, Car, FileText, LogOut, Users, LucideIcon, BarChart3, Shield, Truck, ChevronLeft, ChevronRight, X, UserCircle, History, Wallet, Layers, Receipt, ArrowLeftRight, BookOpen, ShoppingCart, PackagePlus } from "lucide-react";
+import { LayoutDashboard, Database, Settings, PlusCircle, Car, FileText, LogOut, Users, LucideIcon, BarChart3, Shield, Truck, ChevronLeft, ChevronRight, X, UserCircle, History, Wallet, Layers, Receipt, ArrowLeftRight, BookOpen, ShoppingCart, PackagePlus, Landmark } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ interface MenuItem {
   label: string;
   icon: LucideIcon;
   permissionId?: string;
+  specialColor?: string;
 }
 
 interface SidebarProps {
@@ -30,14 +31,16 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
     { href: '/dashboard/registry', label: 'New Registration', icon: PlusCircle, permissionId: 'registry' },
     { href: '/dashboard/clients', label: 'Manage Clients', icon: UserCircle, permissionId: 'clients' },
     { href: '/dashboard/investors', label: 'Manage Investors', icon: Users, permissionId: 'investors' },
-    { href: '/dashboard/accounts', label: 'Accounts', icon: Wallet, permissionId: 'accounts' },
+    { href: '/dashboard/banks', label: 'Manage Banks', icon: Landmark },
     { href: '/dashboard/account-types', label: 'Account Types', icon: Layers, permissionId: 'account_types' },
+    { href: '/dashboard/accounts', label: 'Accounts', icon: Wallet, permissionId: 'accounts' },
     { href: '/dashboard/cash-voucher', label: 'Cash Voucher', icon: Receipt, permissionId: 'cash_voucher' },
     { href: '/dashboard/general-voucher', label: 'General Voucher', icon: ArrowLeftRight, permissionId: 'general_voucher' },
     { href: '/dashboard/general-ledger', label: 'General Ledger', icon: BookOpen, permissionId: 'general_ledger' },
     { href: '/dashboard/settings', label: 'Configurations', icon: Settings, permissionId: 'settings' },
     { href: '/dashboard/inventory', label: 'Inventory', icon: Database, permissionId: 'inventory' },
     { href: '/dashboard/purchase-invoice', label: 'Purchase Invoice', icon: PackagePlus, permissionId: 'purchase_invoice' },
+    { href: '/dashboard/initial-inventory', label: 'Initial Inventory Entry', icon: PackagePlus, specialColor: "text-red-600 bg-red-50 hover:bg-red-100 font-bold border border-red-200 shadow-sm" },
     { href: '/dashboard/sale-invoice', label: 'Sale Invoice', icon: ShoppingCart, permissionId: 'sale_invoice' },
     { href: '/dashboard/website-inventory', label: 'Website Inventory', icon: Car, permissionId: 'inventory' },
     { href: '/dashboard/history', label: 'Vehicle History', icon: History, permissionId: 'inventory' },
@@ -117,7 +120,9 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                 href={item.href}
                 className={cn(
                   "flex items-center space-x-3 px-3 py-2 rounded-md transition-colors group relative",
-                  isActive ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                  item.specialColor 
+                    ? item.specialColor 
+                    : (isActive ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"),
                   isCollapsed && "justify-center px-2"
                 )}
                 title={isCollapsed ? item.label : undefined}
