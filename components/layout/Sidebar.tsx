@@ -12,6 +12,7 @@ interface MenuItem {
   label: string;
   icon: LucideIcon;
   permissionId?: string;
+  specialColor?: string;
 }
 
 interface SidebarProps {
@@ -39,6 +40,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
     { href: '/dashboard/settings', label: 'Configurations', icon: Settings, permissionId: 'settings' },
     { href: '/dashboard/inventory', label: 'Inventory', icon: Database, permissionId: 'inventory' },
     { href: '/dashboard/purchase-invoice', label: 'Purchase Invoice', icon: PackagePlus, permissionId: 'purchase_invoice' },
+    { href: '/dashboard/initial-inventory', label: 'Initial Inventory Entry', icon: PackagePlus, specialColor: "text-red-600 bg-red-50 hover:bg-red-100 font-bold border border-red-200 shadow-sm" },
     { href: '/dashboard/sale-invoice', label: 'Sale Invoice', icon: ShoppingCart, permissionId: 'sale_invoice' },
     { href: '/dashboard/website-inventory', label: 'Website Inventory', icon: Car, permissionId: 'inventory' },
     { href: '/dashboard/history', label: 'Vehicle History', icon: History, permissionId: 'inventory' },
@@ -118,7 +120,9 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
                 href={item.href}
                 className={cn(
                   "flex items-center space-x-3 px-3 py-2 rounded-md transition-colors group relative",
-                  isActive ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+                  item.specialColor 
+                    ? item.specialColor 
+                    : (isActive ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"),
                   isCollapsed && "justify-center px-2"
                 )}
                 title={isCollapsed ? item.label : undefined}
