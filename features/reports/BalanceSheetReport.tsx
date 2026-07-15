@@ -503,7 +503,7 @@ export const BalanceSheetReport = () => {
                         <td className="px-4 py-2.5 text-right text-red-600 font-semibold tabular-nums">
                           {fmtNum(acc.debit)}
                         </td>
-                        <td className="px-4 py-2.5 text-right text-red-700 font-semibold tabular-nums">
+                        <td className="px-4 py-2.5 text-right text-emerald-700 font-semibold tabular-nums">
                           {fmtNum(acc.credit)}
                         </td>
                       </tr>
@@ -517,7 +517,7 @@ export const BalanceSheetReport = () => {
                       <td className="px-4 py-2.5 text-right text-red-600 tabular-nums">
                         {fmtNum(group.totalDebit)}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-red-700 tabular-nums">
+                      <td className="px-4 py-2.5 text-right text-emerald-700 tabular-nums">
                         {fmtNum(group.totalCredit)}
                       </td>
                     </tr>
