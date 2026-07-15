@@ -88,8 +88,8 @@ export const BalanceSheetReport = () => {
         balance: d.data().balance || 0,
       }));
 
-      // Filter out zero-balance vehicle assets (e.g. from deleted/reversed purchases)
-      allAccounts = allAccounts.filter(acc => !(acc.typeName === "Vehicle Asset" && acc.balance === 0));
+      // Filter out all accounts with zero balance
+      allAccounts = allAccounts.filter(acc => acc.balance !== 0);
 
       // Get stock value — sum inventory items that are In Stock
       let totalStock = 0;
