@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import {
+  collection, onSnapshot, query, orderBy,
+  getDocs, where, runTransaction, doc, deleteDoc,
+  serverTimestamp, addDoc
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -15,10 +19,163 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import {
-  Car, Search, Filter, X, CheckCircle2, AlertTriangle, Coins, FileText, LayoutList
+  Car, Search, Filter, X, CheckCircle2, AlertTriangle,
+  Coins, FileText, LayoutList, Trash2, Loader2, ShieldAlert
 } from "lucide-react";
 
+// ─── Confirmation Dialog ──────────────────────────────────────────────────────
+interface DeleteConfirmDialogProps {
+  vehicle: any;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+  error: string;
+}
+
+function DeleteConfirmDialog({ vehicle, onConfirm, onCancel, loading, error }: DeleteConfirmDialogProps) {
+  const isSold = !!vehicle?.isSold;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={!loading ? onCancel : undefined}
+      />
+
+      {/* Dialog */}
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className={`px-6 pt-6 pb-4 flex items-start gap-4 ${isSold ? "bg-amber-50" : "bg-red-50"}`}>
+          <div className={`p-2.5 rounded-xl shrink-0 ${isSold ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-600"}`}>
+            {isSold ? <ShieldAlert size={22} /> : <Trash2 size={22} />}
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">
+              {isSold ? "Cannot Delete Sold Vehicle" : "Delete Purchase Record?"}
+            </h2>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {isSold
+                ? "This vehicle has already been sold. Reverse the sale first."
+                : "This will permanently reverse the purchase and all related accounting entries."}
+            </p>
+          </div>
+          {!loading && (
+            <button
+              onClick={onCancel}
+              className="ml-auto shrink-0 text-slate-400 hover:text-slate-600 transition-colors mt-0.5"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
+
+        {/* Vehicle Info */}
+        <div className="px-6 py-4 border-b border-slate-100 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Vehicle</span>
+            <span className="font-semibold text-slate-900">{vehicle?.brandName} {vehicle?.model}</span>
+          </div>
+          {vehicle?.variant && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Variant</span>
+              <span className="font-medium text-slate-700">{vehicle.variant}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Chassis No.</span>
+            <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-700">
+              {vehicle?.chassisNumber || "—"}
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Purchase Price</span>
+            <span className="font-bold text-blue-700">Rs. {Number(vehicle?.purchasePrice || 0).toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Payment Status</span>
+            <span className={`font-semibold text-xs px-2 py-0.5 rounded-full ${vehicle?.isPaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+              {vehicle?.isPaid ? "Paid" : "Unpaid"}
+            </span>
+          </div>
+          {vehicle?.sellerClientName && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Seller</span>
+              <span className="font-medium text-slate-700">{vehicle.sellerClientName}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Reversal summary */}
+        {!isSold && (
+          <div className="px-6 py-4 bg-red-50/50 border-b border-red-100 space-y-1.5">
+            <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-2">What will be reversed:</p>
+            <div className="flex items-center gap-2 text-xs text-slate-600">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+              Purchase invoice voucher deleted
+            </div>
+            {vehicle?.isPaid && vehicle?.paymentAccountId && (
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                Rs. {Number(vehicle.purchasePrice).toLocaleString()} credited back to payment account
+              </div>
+            )}
+            {!vehicle?.isPaid && vehicle?.sellerClientName && (
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                Payable to {vehicle.sellerClientName} reversed
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-xs text-slate-600">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+              Vehicle ledger account removed
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-600">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+              Vehicle purchase fields reset (vehicle remains in registry)
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-xs">
+            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="px-6 py-5 flex gap-3 justify-end">
+          {isSold ? (
+            <Button onClick={onCancel} className="bg-slate-900 text-white">Close</Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onCancel} disabled={loading} className="border-slate-200">
+                Cancel
+              </Button>
+              <Button
+                onClick={onConfirm}
+                disabled={loading}
+                className="bg-red-600 hover:bg-red-700 text-white gap-2 min-w-[160px]"
+              >
+                {loading ? (
+                  <><Loader2 size={15} className="animate-spin" /> Reversing...</>
+                ) : (
+                  <><Trash2 size={15} /> Yes, Delete & Reverse</>
+                )}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export function PurchaseInventoryList() {
+  const { user } = useAuth();
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +185,12 @@ export function PurchaseInventoryList() {
   const [docFilter, setDocFilter] = useState("ALL");
   const [plateFilter, setPlateFilter] = useState("ALL");
   const [yearFilter, setYearFilter] = useState("ALL");
+
+  // Delete state
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     const q = query(collection(db, "cars"), orderBy("createdAt", "desc"));
@@ -93,10 +256,10 @@ export function PurchaseInventoryList() {
     let totalPurchasedCount = vehicles.length;
     let inStockCount = 0;
     let soldCount = 0;
-    
-    let activeValuation = 0; // Cost of currently in-stock purchased vehicles
-    let totalValuationAllTime = 0; // Cost of all purchased vehicles
-    let soldRevenue = 0; // Total sales revenue
+
+    let activeValuation = 0;
+    let totalValuationAllTime = 0;
+    let soldRevenue = 0;
 
     vehicles.forEach(v => {
       const purchaseVal = Number(v.purchasePrice) || 0;
@@ -114,14 +277,7 @@ export function PurchaseInventoryList() {
       }
     });
 
-    return {
-      totalPurchasedCount,
-      inStockCount,
-      soldCount,
-      activeValuation,
-      totalValuationAllTime,
-      soldRevenue
-    };
+    return { totalPurchasedCount, inStockCount, soldCount, activeValuation, totalValuationAllTime, soldRevenue };
   }, [vehicles]);
 
   // Filtered Summation Totals
@@ -134,17 +290,12 @@ export function PurchaseInventoryList() {
       const p = Number(v.purchasePrice) || 0;
       const e = Number(v.totalExpenses) || 0;
       const c = Number(v.capitalizedCost) || (p + e);
-
       purchaseTotal += p;
       expensesTotal += e;
       capitalizedTotal += c;
     });
 
-    return {
-      purchaseTotal,
-      expensesTotal,
-      capitalizedTotal
-    };
+    return { purchaseTotal, expensesTotal, capitalizedTotal };
   }, [filteredVehicles]);
 
   const clearFilters = () => {
@@ -157,8 +308,140 @@ export function PurchaseInventoryList() {
 
   const hasActiveFilters = searchTerm || stockFilter !== "ALL" || docFilter !== "ALL" || plateFilter !== "ALL" || yearFilter !== "ALL";
 
+  // ─── Delete Handler ─────────────────────────────────────────────────────────
+  const handleDeleteVehicle = async () => {
+    if (!deleteTarget || !user) return;
+    const car = deleteTarget;
+
+    setDeleteLoading(true);
+    setDeleteError("");
+
+    try {
+      // 1. Query purchase vouchers for this car BEFORE starting the transaction
+      const vouchersQuery = query(
+        collection(db, "vouchers"),
+        where("vehicleId", "==", car.id),
+        where("invoiceType", "==", "PURCHASE")
+      );
+      const vouchersSnap = await getDocs(vouchersQuery);
+      const voucherRefs = vouchersSnap.docs.map(d => doc(db, "vouchers", d.id));
+
+      // 2. Run atomic transaction
+      await runTransaction(db, async (tx) => {
+        // READ PHASE — gather all docs we need to modify
+        const carRef = doc(db, "cars", car.id);
+        const carSnap = await tx.get(carRef);
+        if (!carSnap.exists()) throw new Error("Vehicle record not found.");
+
+        // Read payment/seller account
+        let payAccRef: any = null;
+        let payAccSnap: any = null;
+
+        if (car.isPaid && car.paymentAccountId) {
+          payAccRef = doc(db, "accounts", car.paymentAccountId);
+          payAccSnap = await tx.get(payAccRef);
+        } else if (!car.isPaid && car.sellerClientId) {
+          // Look up the client's linked account id
+          const clientRef = doc(db, "clients", car.sellerClientId);
+          const clientSnap = await tx.get(clientRef);
+          if (clientSnap.exists() && clientSnap.data().accountId) {
+            payAccRef = doc(db, "accounts", clientSnap.data().accountId);
+            payAccSnap = await tx.get(payAccRef);
+          }
+        }
+
+        // Read vehicle ledger account (if exists)
+        let vehicleAccRef: any = null;
+        if (car.vehicleAccountId) {
+          vehicleAccRef = doc(db, "accounts", car.vehicleAccountId);
+          await tx.get(vehicleAccRef); // must read before delete in transaction
+        }
+
+        // WRITE PHASE
+
+        // Delete purchase vouchers
+        voucherRefs.forEach(ref => tx.delete(ref));
+
+        // Reverse payment / seller account balance
+        if (payAccRef && payAccSnap?.exists()) {
+          const prevBal = payAccSnap.data().balance || 0;
+          const restoredBal = prevBal + Number(car.purchasePrice); // add back what was debited/credited
+          tx.update(payAccRef, {
+            balance: restoredBal,
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid
+          });
+        }
+
+        // Delete vehicle ledger account
+        if (vehicleAccRef) {
+          tx.delete(vehicleAccRef);
+        }
+
+        // Reset car document purchase fields
+        tx.update(carRef, {
+          purchasePrice: 0,
+          isPaid: false,
+          paymentAccountId: null,
+          sellerClientId: null,
+          sellerClientName: "",
+          sellerClientPhone: "",
+          vehicleAccountId: null,
+          capitalizedCost: 0,
+          hasInvestor: false,
+          investorId: null,
+          investorName: null,
+          commissionType: null,
+          commissionValue: 0,
+          purchaseReversedAt: serverTimestamp(),
+          purchaseReversedBy: user.uid
+        });
+
+        // Write a log entry
+        tx.set(doc(collection(db, "logs")), {
+          action: `Purchase reversed: ${car.brandName} ${car.model} (Chassis: ${car.chassisNumber || "N/A"})`,
+          details: `Rs. ${Number(car.purchasePrice).toLocaleString()} reversed — ${voucherRefs.length} voucher(s) deleted`,
+          performedBy: user.uid,
+          timestamp: serverTimestamp(),
+          type: "PURCHASE_REVERSAL"
+        });
+      });
+
+      // Success
+      setDeleteTarget(null);
+      setSuccessMessage(
+        `✓ Purchase for ${car.brandName} ${car.model} has been reversed and ${voucherRefs.length} voucher(s) deleted.`
+      );
+      setTimeout(() => setSuccessMessage(""), 7000);
+    } catch (err: any) {
+      console.error("Delete vehicle error:", err);
+      setDeleteError(err.message || "An unexpected error occurred. Please try again.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Delete Confirmation Dialog */}
+      {deleteTarget && (
+        <DeleteConfirmDialog
+          vehicle={deleteTarget}
+          onConfirm={handleDeleteVehicle}
+          onCancel={() => { setDeleteTarget(null); setDeleteError(""); }}
+          loading={deleteLoading}
+          error={deleteError}
+        />
+      )}
+
+      {/* Success Message */}
+      {successMessage && (
+        <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl text-sm font-medium shadow-sm">
+          <CheckCircle2 size={18} className="shrink-0 text-green-600" />
+          {successMessage}
+        </div>
+      )}
+
       {/* --- Valuation Stats Cards --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Active Inventory Value */}
@@ -304,7 +587,7 @@ export function PurchaseInventoryList() {
         </CardContent>
       </Card>
 
-      {/* --- Inventory Table with Dynamic Summary Row --- */}
+      {/* --- Inventory Table --- */}
       {loading ? (
         <div className="flex justify-center items-center py-20 bg-white border border-slate-200 rounded-2xl shadow-sm">
           <p className="text-slate-400 text-sm font-medium">Loading purchase inventory...</p>
@@ -332,7 +615,8 @@ export function PurchaseInventoryList() {
                   <th className="px-4 py-3 text-right font-semibold text-xs uppercase tracking-wide">Purchase Price</th>
                   <th className="px-4 py-3 text-right font-semibold text-xs uppercase tracking-wide">Total Expenses</th>
                   <th className="px-4 py-3 text-right font-semibold text-xs uppercase tracking-wide">Capitalized Cost</th>
-                  <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wide">Stock Status</th>
+                  <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wide">Status</th>
+                  <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -340,10 +624,12 @@ export function PurchaseInventoryList() {
                   const purchase = Number(v.purchasePrice) || 0;
                   const expenses = Number(v.totalExpenses) || 0;
                   const capitalized = Number(v.capitalizedCost) || (purchase + expenses);
+                  const isSold = !!v.isSold;
+
                   return (
                     <tr
                       key={v.id}
-                      className="hover:bg-slate-50/50 transition-colors duration-150"
+                      className="hover:bg-slate-50/50 transition-colors duration-150 group"
                     >
                       <td className="px-4 py-3.5 text-slate-400 font-mono text-xs">{idx + 1}</td>
                       <td className="px-4 py-3.5">
@@ -366,7 +652,7 @@ export function PurchaseInventoryList() {
                         <div className="font-medium">{v.modelYear || v.year || "—"}</div>
                         <div className="flex items-center gap-1.5 mt-1">
                           <span
-                            className="inline-block w-3.5 h-3.5 rounded-full border border-slate-200 shadow-sm animate-pulse"
+                            className="inline-block w-3.5 h-3.5 rounded-full border border-slate-200 shadow-sm"
                             style={{ backgroundColor: v.color?.toLowerCase() || "#ccc" }}
                           />
                           <span>{v.color || "—"}</span>
@@ -390,7 +676,7 @@ export function PurchaseInventoryList() {
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-center">
-                        {v.isSold ? (
+                        {isSold ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">
                             SOLD
                           </span>
@@ -399,6 +685,23 @@ export function PurchaseInventoryList() {
                             In Stock
                           </span>
                         )}
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <button
+                          onClick={() => { setDeleteError(""); setDeleteTarget(v); }}
+                          title={isSold ? "Cannot delete a sold vehicle — reverse the sale first" : "Delete purchase record & reverse accounting"}
+                          className={`
+                            inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                            transition-all duration-150
+                            ${isSold
+                              ? "text-slate-300 cursor-not-allowed bg-slate-50 border border-slate-100"
+                              : "text-red-500 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 opacity-0 group-hover:opacity-100"
+                            }
+                          `}
+                        >
+                          <Trash2 size={13} />
+                          {isSold ? "Sold" : "Delete"}
+                        </button>
                       </td>
                     </tr>
                   );
@@ -419,7 +722,7 @@ export function PurchaseInventoryList() {
                   <td className="px-4 py-3 text-right text-blue-800 text-sm font-extrabold bg-blue-50/50">
                     Rs. {filteredTotals.capitalizedTotal.toLocaleString()}
                   </td>
-                  <td className="px-4 py-3"></td>
+                  <td className="px-4 py-3" colSpan={2} />
                 </tr>
               </tbody>
             </table>
