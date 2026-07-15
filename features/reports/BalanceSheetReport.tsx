@@ -230,8 +230,8 @@ export const BalanceSheetReport = () => {
           body.push([
             { content: String(acc.no), styles: { textColor: [148, 163, 184], fontSize: 8 } },
             { content: acc.name, styles: { fontStyle: "normal" } },
-            { content: fmtNum(acc.debit), styles: { halign: "right", textColor: acc.debit > 0 ? [5, 150, 105] : [156, 163, 175] } },
-            { content: fmtNum(acc.credit), styles: { halign: "right", textColor: acc.credit > 0 ? [220, 38, 38] : [156, 163, 175] } },
+            { content: fmtNum(acc.debit), styles: { halign: "right", textColor: acc.debit > 0 ? [220, 38, 38] : [156, 163, 175] } },
+            { content: fmtNum(acc.credit), styles: { halign: "right", textColor: acc.credit > 0 ? [5, 150, 105] : [156, 163, 175] } },
           ] as any);
         }
 
@@ -244,11 +244,11 @@ export const BalanceSheetReport = () => {
           },
           {
             content: fmtNum(group.totalDebit),
-            styles: { halign: "right", fillColor: [241, 245, 249], fontStyle: "bold", textColor: [5, 150, 105] }
+            styles: { halign: "right", fillColor: [241, 245, 249], fontStyle: "bold", textColor: [220, 38, 38] }
           },
           {
             content: fmtNum(group.totalCredit),
-            styles: { halign: "right", fillColor: [241, 245, 249], fontStyle: "bold", textColor: [220, 38, 38] }
+            styles: { halign: "right", fillColor: [241, 245, 249], fontStyle: "bold", textColor: [5, 150, 105] }
           },
         ] as any);
 
@@ -266,7 +266,7 @@ export const BalanceSheetReport = () => {
           { content: "Current Stock", styles: { fontStyle: "normal" } },
           {
             content: stockValue.toLocaleString("en-PK", { maximumFractionDigits: 0 }),
-            styles: { halign: "right", textColor: [5, 150, 105], fontStyle: "bold" }
+            styles: { halign: "right", textColor: [220, 38, 38], fontStyle: "bold" }
           },
           { content: "", styles: {} },
         ] as any);
@@ -287,21 +287,21 @@ export const BalanceSheetReport = () => {
           content: grandTotalDebit.toLocaleString("en-PK", { maximumFractionDigits: 0 }),
           styles: {
             halign: "right", fillColor: [15, 23, 42],
-            textColor: [110, 231, 183], fontStyle: "bold", fontSize: 10
+            textColor: [252, 165, 165], fontStyle: "bold", fontSize: 10
           }
         },
         {
           content: grandTotalCredit.toLocaleString("en-PK", { maximumFractionDigits: 0 }),
           styles: {
             halign: "right", fillColor: [15, 23, 42],
-            textColor: [252, 165, 165], fontStyle: "bold", fontSize: 10
+            textColor: [110, 231, 183], fontStyle: "bold", fontSize: 10
           }
         },
       ] as any);
 
       // Net Balance row
-      const balanceFill = netBalance >= 0 ? [236, 253, 245] : [254, 242, 242];
-      const balanceColor = netBalance >= 0 ? [4, 120, 87] : [185, 28, 28];
+      const balanceFill = netBalance >= 0 ? [254, 242, 242] : [236, 253, 245];
+      const balanceColor = netBalance >= 0 ? [185, 28, 28] : [4, 120, 87];
       body.push([
         {
           content: `Balance ${netBalance >= 0 ? "(Dr)" : "(Cr)"}`,
@@ -500,10 +500,10 @@ export const BalanceSheetReport = () => {
                       >
                         <td className="px-4 py-2.5 text-slate-400 text-xs tabular-nums">{acc.no}</td>
                         <td className="px-4 py-2.5 text-slate-800 font-medium">{acc.name}</td>
-                        <td className="px-4 py-2.5 text-right text-emerald-700 font-semibold tabular-nums">
+                        <td className="px-4 py-2.5 text-right text-red-600 font-semibold tabular-nums">
                           {fmtNum(acc.debit)}
                         </td>
-                        <td className="px-4 py-2.5 text-right text-red-600 font-semibold tabular-nums">
+                        <td className="px-4 py-2.5 text-right text-red-700 font-semibold tabular-nums">
                           {fmtNum(acc.credit)}
                         </td>
                       </tr>
@@ -514,10 +514,10 @@ export const BalanceSheetReport = () => {
                       <td colSpan={2} className="px-4 py-2.5 text-slate-600 text-xs uppercase tracking-wide">
                         TOTAL — {group.typeName}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-emerald-700 tabular-nums">
+                      <td className="px-4 py-2.5 text-right text-red-600 tabular-nums">
                         {fmtNum(group.totalDebit)}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-red-600 tabular-nums">
+                      <td className="px-4 py-2.5 text-right text-red-700 tabular-nums">
                         {fmtNum(group.totalCredit)}
                       </td>
                     </tr>
@@ -535,7 +535,7 @@ export const BalanceSheetReport = () => {
                     <tr className="bg-white">
                       <td className="px-4 py-2.5 text-slate-400 text-xs" />
                       <td className="px-4 py-2.5 text-slate-800 font-medium">Current Stock</td>
-                      <td className="px-4 py-2.5 text-right text-emerald-700 font-semibold tabular-nums">
+                      <td className="px-4 py-2.5 text-right text-red-600 font-semibold tabular-nums">
                         {stockValue.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                       </td>
                       <td className="px-4 py-2.5" />
@@ -549,27 +549,27 @@ export const BalanceSheetReport = () => {
                   <td colSpan={2} className="px-4 py-3.5 font-black text-sm uppercase tracking-widest">
                     GRAND TOTAL
                   </td>
-                  <td className="px-4 py-3.5 text-right font-black text-base tabular-nums text-emerald-300">
+                  <td className="px-4 py-3.5 text-right font-black text-base tabular-nums text-red-300">
                     {grandTotalDebit.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                   </td>
-                  <td className="px-4 py-3.5 text-right font-black text-base tabular-nums text-red-300">
+                  <td className="px-4 py-3.5 text-right font-black text-base tabular-nums text-emerald-300">
                     {grandTotalCredit.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                   </td>
                 </tr>
 
                 {/* Net Balance */}
-                <tr className={`border-t-2 ${netBalance >= 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+                <tr className={`border-t-2 ${netBalance >= 0 ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"}`}>
                   <td
                     colSpan={2}
-                    className={`px-4 py-3.5 font-black text-sm flex items-center gap-2 ${netBalance >= 0 ? "text-emerald-800" : "text-red-800"}`}
+                    className={`px-4 py-3.5 font-black text-sm flex items-center gap-2 ${netBalance >= 0 ? "text-red-800" : "text-emerald-800"}`}
                   >
                     {netBalance >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                     Balance {netBalance >= 0 ? "(Dr)" : "(Cr)"}
                   </td>
-                  <td className={`px-4 py-3.5 text-right font-black text-sm tabular-nums ${netBalance >= 0 ? "text-emerald-700" : "text-slate-300"}`}>
+                  <td className={`px-4 py-3.5 text-right font-black text-sm tabular-nums ${netBalance >= 0 ? "text-red-600" : "text-slate-300"}`}>
                     {netBalance >= 0 ? Math.abs(netBalance).toLocaleString("en-PK", { maximumFractionDigits: 0 }) : ""}
                   </td>
-                  <td className={`px-4 py-3.5 text-right font-black text-sm tabular-nums ${netBalance < 0 ? "text-red-700" : "text-slate-300"}`}>
+                  <td className={`px-4 py-3.5 text-right font-black text-sm tabular-nums ${netBalance < 0 ? "text-emerald-700" : "text-slate-300"}`}>
                     {netBalance < 0 ? Math.abs(netBalance).toLocaleString("en-PK", { maximumFractionDigits: 0 }) : ""}
                   </td>
                 </tr>
