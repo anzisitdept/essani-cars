@@ -81,12 +81,15 @@ export const BalanceSheetReport = () => {
     try {
       // Fetch all accounts
       const accountsSnap = await getDocs(query(collection(db, "accounts"), orderBy("name")));
-      const allAccounts: Account[] = accountsSnap.docs.map(d => ({
+      let allAccounts: Account[] = accountsSnap.docs.map(d => ({
         id: d.id,
         name: d.data().name,
         typeName: d.data().typeName || "Other",
         balance: d.data().balance || 0,
       }));
+
+      // Filter out zero-balance vehicle assets (e.g. from deleted/reversed purchases)
+      allAccounts = allAccounts.filter(acc => !(acc.typeName === "Vehicle Asset" && acc.balance === 0));
 
       // Get stock value — sum inventory items that are In Stock
       let totalStock = 0;
