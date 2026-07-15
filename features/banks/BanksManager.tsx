@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import {
   Search, Pencil, Landmark, X, CheckCircle2, Building, CreditCard, Hash, Loader2, Info
 } from "lucide-react";
 
@@ -45,7 +52,7 @@ export const BanksManager = () => {
     description: "",
     accountNumber: "",
     iban: "",
-    description: "",
+    bankName: "",
   });
 
   // 1) Find the real "Bank" account-type ID from Firestore
@@ -101,27 +108,21 @@ export const BanksManager = () => {
   }, [bankTypeId]);
 
   const resetForm = () => {
-    setFormData({ 
-      name: "", 
-      typeId: "bank", 
-      balance: "0", 
+    setFormData({
+      name: "",
+      typeId: "bank",
+      balance: "0",
       balanceType: "debit",
       description: "",
       accountNumber: "",
       iban: "",
       bankName: "",
-      shopName: "",
-      fatherName: "",
-      phoneNumber: "",
-      cnic: "",
-      cnicPicture: "",
     });
-    setCnicFile(null);
     setIsEditing(null);
     setMessage("");
   };
 
-  const handleEdit = (account: Account) => {
+  const handleEdit = (account: BankAccount) => {
     const isCredit = account.balance < 0;
     setFormData({
       name: account.name,
@@ -131,7 +132,7 @@ export const BanksManager = () => {
       description: account.description || "",
       accountNumber: account.accountNumber || "",
       iban: account.iban || "",
-      description: account.description || "",
+      bankName: account.bankName || "",
     });
     setIsEditing(account.id);
     setMessage("");
@@ -145,97 +146,29 @@ export const BanksManager = () => {
     setMessage("");
 
     try {
-      let cnicPicUrl = formData.cnicPicture;
-      if (cnicFile) {
-        const fileRef = ref(storage, `cnic/${Date.now()}_${cnicFile.name}`);
-        const snapshot = await uploadBytes(fileRef, cnicFile);
-        cnicPicUrl = await getDownloadURL(snapshot.ref);
-      }
-
-      const selectedType = hardcodedAccountTypes.find(t => t.id === formData.typeId);
-      const typeName = selectedType ? selectedType.name : "Unknown";
-
       const enteredBalance = parseFloat(formData.balance) || 0;
       const finalBalance = formData.balanceType === "credit" ? -Math.abs(enteredBalance) : Math.abs(enteredBalance);
 
       const payload = {
         name: formData.name.trim(),
         typeId: formData.typeId,
-        typeName: typeName,
         balance: finalBalance,
         description: formData.description.trim(),
         accountNumber: formData.accountNumber.trim(),
         iban: formData.iban.trim(),
-        description: formData.description.trim(),
+        bankName: formData.bankName.trim(),
         updatedBy: user.uid,
         updatedAt: serverTimestamp()
       };
 
-      if (isEditing) {
-        await updateDoc(doc(db, "accounts", isEditing), payload);
-        
-        await addDoc(collection(db, "logs"), {
-          action: `Updated bank/special account: ${formData.name}`,
-          performedBy: user.uid,
-          timestamp: serverTimestamp(),
-          type: "ADMIN_ACTION"
-        });
+      await updateDoc(doc(db, "accounts", isEditing), payload);
 
-        setMessage("Success: Account updated successfully.");
-      } else {
-        // Check for duplicates
-        const duplicate = accounts.find(a => a.name.toLowerCase() === formData.name.trim().toLowerCase());
-        if (duplicate) {
-          setMessage("Error: An account with this name already exists.");
-          setLoading(false);
-          return;
-        }
-
-        const accountRef = await addDoc(collection(db, "accounts"), {
-          ...payload,
-          createdBy: user.uid,
-          createdAt: serverTimestamp()
-        });
-
-        // Opening Balance voucher
-        const initialBal = finalBalance;
-        if (initialBal !== 0) {
-          const today = new Date().toISOString().split("T")[0];
-          await addDoc(collection(db, "vouchers"), {
-            voucherNo: `OB-${accountRef.id.slice(-6).toUpperCase()}`,
-            date: today,
-            description: `Opening Balance — ${formData.name.trim()}`,
-            amount: Math.abs(initialBal),
-            debit: initialBal > 0 ? Math.abs(initialBal) : 0,
-            credit: initialBal < 0 ? Math.abs(initialBal) : 0,
-            cashAccountId: accountRef.id,
-            cashAccountName: formData.name.trim(),
-            cashType: initialBal > 0 ? "debit" : "credit",
-            cashPreviousBalance: 0,
-            cashNewBalance: initialBal,
-            counterAccountId: null,
-            counterAccountName: "Opening Balance (Equity)",
-            counterType: initialBal > 0 ? "credit" : "debit",
-            counterPreviousBalance: null,
-            counterNewBalance: null,
-            accountId: accountRef.id,
-            accountName: formData.name.trim(),
-            type: initialBal > 0 ? "debit" : "credit",
-            previousBalance: 0,
-            newBalance: initialBal,
-            isOpeningBalance: true,
-            invoiceType: "OPENING_BALANCE",
-            createdBy: user.uid,
-            createdAt: serverTimestamp()
-          });
-        }
-
-        await addDoc(collection(db, "logs"), {
-          action: `Created bank/special account: ${formData.name} (${typeName})${initialBal ? ` with opening balance Rs. ${Math.abs(initialBal).toLocaleString()} (${initialBal > 0 ? 'Dr' : 'Cr'})` : ""}`,
-          performedBy: user.uid,
-          timestamp: serverTimestamp(),
-          type: "ADMIN_ACTION"
-        });
+      await addDoc(collection(db, "logs"), {
+        action: `Updated bank account: ${formData.name}`,
+        performedBy: user.uid,
+        timestamp: serverTimestamp(),
+        type: "ADMIN_ACTION"
+      });
 
       setMessage("Success: Bank details updated successfully.");
       resetForm();
@@ -327,41 +260,41 @@ export const BanksManager = () => {
               />
             </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
-              <CreditCard size={12} /> IBAN Number
-            </label>
-            <Input value={formData.iban} onChange={e => setFormData({ ...formData, iban: e.target.value })} placeholder="PK00XXXX000000000000" />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-500 block">
-              Initial Balance / Current Balance
-            </label>
-            <div className="flex gap-2">
-              <Input 
-                type="number" 
-                step="0.01" 
-                min="0"
-                value={formData.balance} 
-                onChange={e => setFormData({ ...formData, balance: e.target.value })} 
-                placeholder="0.00" 
-                className="flex-1"
-              />
-              <Select 
-                value={formData.balanceType} 
-                onValueChange={(val) => setFormData(prev => ({ ...prev, balanceType: val }))}
-              >
-                <SelectTrigger className="w-[120px] bg-white">
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="debit">Debit (Dr)</SelectItem>
-                  <SelectItem value="credit">Credit (Cr)</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                <CreditCard size={12} /> IBAN Number
+              </label>
+              <Input value={formData.iban} onChange={e => setFormData({ ...formData, iban: e.target.value })} placeholder="PK00XXXX000000000000" />
             </div>
-          </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-slate-500 block">
+                Initial Balance / Current Balance
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.balance}
+                  onChange={e => setFormData({ ...formData, balance: e.target.value })}
+                  placeholder="0.00"
+                  className="flex-1"
+                />
+                <Select
+                  value={formData.balanceType}
+                  onValueChange={(val) => setFormData(prev => ({ ...prev, balanceType: val }))}
+                >
+                  <SelectTrigger className="w-[120px] bg-white">
+                    <SelectValue placeholder="Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="debit">Debit (Dr)</SelectItem>
+                    <SelectItem value="credit">Credit (Cr)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             <div className="space-y-2">
               <label className="text-xs font-medium text-slate-500">

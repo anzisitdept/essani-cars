@@ -125,9 +125,9 @@ export const AccountsManager = () => {
       balanceType: isCredit ? "credit" : "debit",
       description: account.description || "",
       shopName: account.shopName || "",
-      fatherName: investorFatherName,
-      phoneNumber: investorPhone,
-      cnic: investorCnic,
+      fatherName: account.fatherName || "",
+      phoneNumber: account.phoneNumber || "",
+      cnic: account.cnic || "",
       cnicPicture: account.cnicPicture || ""
     });
     setCnicFile(null);
@@ -251,59 +251,30 @@ export const AccountsManager = () => {
         // If an initial balance is set, write an Opening Balance voucher
         // so it shows up as the first entry in the General Ledger
         const initialBal = finalBalance;
+        const today = new Date().toISOString().split("T")[0];
         if (initialBal !== 0) {
-          const today = new Date().toISOString().split("T")[0];
           await addDoc(collection(db, "vouchers"), {
-            voucherNo: `OB-DR-${accountRef.id.slice(-6).toUpperCase()}`,
+            voucherNo: `OB-${accountRef.id.slice(-6).toUpperCase()}`,
             date: today,
-            description: `Opening Debit Balance — ${formData.name.trim()}`,
-            amount: debitVal,
-            debit: debitVal,
-            credit: 0,
+            description: `Opening Balance — ${formData.name.trim()}`,
+            amount: Math.abs(initialBal),
+            debit: initialBal > 0 ? Math.abs(initialBal) : 0,
+            credit: initialBal < 0 ? Math.abs(initialBal) : 0,
             cashAccountId: accountRef.id,
             cashAccountName: formData.name.trim(),
-            cashType: "debit",
+            cashType: initialBal > 0 ? "debit" : "credit",
             cashPreviousBalance: 0,
-            cashNewBalance: debitVal,
+            cashNewBalance: initialBal,
             counterAccountId: null,
             counterAccountName: "Opening Balance (Equity)",
-            counterType: "credit",
+            counterType: initialBal > 0 ? "credit" : "debit",
             counterPreviousBalance: null,
             counterNewBalance: null,
             accountId: accountRef.id,
             accountName: formData.name.trim(),
-            type: "debit",
+            type: initialBal > 0 ? "debit" : "credit",
             previousBalance: 0,
-            newBalance: debitVal,
-            isOpeningBalance: true,
-            invoiceType: "OPENING_BALANCE",
-            createdBy: user.uid,
-            createdAt: serverTimestamp()
-          });
-        }
-        if (creditVal > 0) {
-          await addDoc(collection(db, "vouchers"), {
-            voucherNo: `OB-CR-${accountRef.id.slice(-6).toUpperCase()}`,
-            date: today,
-            description: `Opening Credit Balance — ${formData.name.trim()}`,
-            amount: creditVal,
-            debit: 0,
-            credit: creditVal,
-            cashAccountId: accountRef.id,
-            cashAccountName: formData.name.trim(),
-            cashType: "credit",
-            cashPreviousBalance: debitVal,
-            cashNewBalance: netBalance,
-            counterAccountId: null,
-            counterAccountName: "Opening Balance (Equity)",
-            counterType: "debit",
-            counterPreviousBalance: null,
-            counterNewBalance: null,
-            accountId: accountRef.id,
-            accountName: formData.name.trim(),
-            type: "credit",
-            previousBalance: debitVal,
-            newBalance: netBalance,
+            newBalance: initialBal,
             isOpeningBalance: true,
             invoiceType: "OPENING_BALANCE",
             createdBy: user.uid,
