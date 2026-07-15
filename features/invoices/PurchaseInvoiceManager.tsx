@@ -17,6 +17,9 @@ import {
   CheckCircle2, Loader2, Car, DollarSign, Users, Wallet,
   FileText, ChevronDown, Info, CreditCard, AlertTriangle
 } from "lucide-react";
+import { SearchSelector } from "@/components/ui/SearchSelector";
+import { VehicleSelector } from "@/features/inventory/VehicleSelector";
+import { ClientSelector } from "@/features/registry/ClientSelector";
 
 export const PurchaseInvoiceManager = () => {
   const { user } = useAuth();
@@ -413,25 +416,16 @@ export const PurchaseInvoiceManager = () => {
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
               <Car size={13} /> Select Vehicle *
             </label>
-            <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
-              <SelectTrigger className="bg-white h-11 text-sm">
-                <SelectValue placeholder="Choose a registered vehicle..." />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {vehicles.length === 0 ? (
-                  <div className="p-4 text-center text-slate-400 text-xs">No unregistered/unpurchased vehicles found. Register a vehicle first.</div>
-                ) : (
-                  vehicles.map(v => (
-                    <SelectItem key={v.id} value={v.id}>
-                      <span className="font-semibold">{v.brandName} {v.model}</span>
-                      <span className="text-slate-400 ml-2 text-xs">
-                        {v.modelYear || v.year} · {v.color} · {v.chassisNumber?.slice(-6) || "N/A"}
-                      </span>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            {vehicles.length === 0 ? (
+              <div className="p-4 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-lg">No unregistered/unpurchased vehicles found. Register a vehicle first.</div>
+            ) : (
+              <VehicleSelector
+                vehicles={vehicles}
+                value={selectedVehicleId}
+                onChange={setSelectedVehicleId}
+                placeholder="Choose a registered vehicle..."
+              />
+            )}
             {vehicles.length === 0 && (
               <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
                 <AlertTriangle size={12} /> All registered vehicles are already purchased. Go to "New Registration" to add another vehicle first.
@@ -489,19 +483,12 @@ export const PurchaseInvoiceManager = () => {
                 <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Seller / Client</h4>
                 <span className="text-xs text-slate-400 italic">(Optional — required for unpaid payable entry)</span>
               </div>
-              <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
-                <SelectTrigger className="bg-white h-10">
-                  <SelectValue placeholder="Select seller / client..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {clients.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <span className="font-semibold">{c.name}</span>
-                      {c.phone && <span className="text-slate-400 ml-2 text-xs">{c.phone}</span>}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ClientSelector
+                clients={clients}
+                value={selectedSellerId}
+                onChange={setSelectedSellerId}
+                placeholder="Select seller / client..."
+              />
               {selectedSellerId && (() => {
                 const seller = clients.find(c => c.id === selectedSellerId);
                 return seller ? (
@@ -582,19 +569,30 @@ export const PurchaseInvoiceManager = () => {
                   <label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
                     <Wallet size={12} /> Payment Account *
                   </label>
-                  <Select value={paymentAccountId} onValueChange={setPaymentAccountId}>
-                    <SelectTrigger className="bg-white h-10">
-                      <SelectValue placeholder="Select cash / bank account..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>
-                          {acc.name}
-                          <span className="text-slate-400 ml-2 text-xs">(Rs. {Number(acc.balance).toLocaleString()})</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchSelector
+                    items={accounts}
+                    value={paymentAccountId}
+                    onChange={setPaymentAccountId}
+                    placeholder="Select cash / bank account..."
+                    searchPlaceholder="Search account..."
+                    getSearchFields={(acc) => [acc.name, acc.typeName]}
+                    itemKey={(acc) => acc.id}
+                    renderTrigger={(selected) =>
+                      selected ? (
+                        <span>
+                          {selected.name} <span className="text-slate-400 text-xs ml-1">(Rs. {Number(selected.balance).toLocaleString()})</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">Select cash / bank account...</span>
+                      )
+                    }
+                    renderItem={(acc) => (
+                      <div className="flex justify-between items-center w-full text-left">
+                        <span className="font-medium text-slate-800">{acc.name}</span>
+                        <span className="text-xs text-slate-500 font-mono">Rs. {Number(acc.balance).toLocaleString()}</span>
+                      </div>
+                    )}
+                  />
                 </div>
               )}
 
@@ -619,16 +617,29 @@ export const PurchaseInvoiceManager = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pl-2">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-slate-500">Investor *</label>
-                      <Select value={investorId} onValueChange={setInvestorId}>
-                        <SelectTrigger className="bg-white h-10">
-                          <SelectValue placeholder="Select investor..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {investors.map(inv => (
-                            <SelectItem key={inv.id} value={inv.id}>{inv.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchSelector
+                        items={investors}
+                        value={investorId}
+                        onChange={setInvestorId}
+                        placeholder="Select investor..."
+                        searchPlaceholder="Search investor..."
+                        getSearchFields={(inv) => [inv.name, inv.phone]}
+                        itemKey={(inv) => inv.id}
+                        dropdownWidthClassName="w-[300px]"
+                        renderTrigger={(selected) =>
+                          selected ? (
+                            <span>{selected.name}</span>
+                          ) : (
+                            <span className="text-slate-400">Select investor...</span>
+                          )
+                        }
+                        renderItem={(inv) => (
+                          <div className="flex flex-col text-left">
+                            <span className="font-semibold text-slate-800">{inv.name}</span>
+                            {inv.phone && <span className="text-xs text-slate-400 font-mono mt-0.5">{inv.phone}</span>}
+                          </div>
+                        )}
+                      />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-slate-500">Commission Type</label>

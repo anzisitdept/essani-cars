@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { SearchSelector } from "@/components/ui/SearchSelector";
 import {
   Dialog,
   DialogContent,
@@ -541,29 +542,53 @@ export const GeneralVoucherManager = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-500 block">From Account (Source) *</label>
-                  <Select value={formData.fromAccountId} onValueChange={(val) => setFormData(prev => ({ ...prev, fromAccountId: val }))}>
-                    <SelectTrigger className="w-full bg-white">
-                      <SelectValue placeholder="Choose account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (Rs. {acc.balance.toLocaleString()})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchSelector
+                    items={accounts}
+                    value={formData.fromAccountId}
+                    onChange={(val) => setFormData(prev => ({ ...prev, fromAccountId: val }))}
+                    placeholder="Choose account"
+                    searchPlaceholder="Search account..."
+                    getSearchFields={(acc) => [acc.name, acc.typeName]}
+                    itemKey={(acc) => acc.id}
+                    renderTrigger={(selected) =>
+                      selected ? (
+                        <span>{selected.name} <span className="text-slate-400 text-xs ml-1">(Rs. {selected.balance.toLocaleString()})</span></span>
+                      ) : (
+                        <span className="text-slate-400">Choose account</span>
+                      )
+                    }
+                    renderItem={(acc) => (
+                      <div className="flex justify-between items-center w-full text-left">
+                        <span className="font-medium text-slate-800">{acc.name}</span>
+                        <span className="text-xs text-slate-400 font-mono">Rs. {acc.balance.toLocaleString()}</span>
+                      </div>
+                    )}
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-500 block">To Account (Destination) *</label>
-                  <Select value={formData.toAccountId} onValueChange={(val) => setFormData(prev => ({ ...prev, toAccountId: val }))}>
-                    <SelectTrigger className="w-full bg-white">
-                      <SelectValue placeholder="Choose account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (Rs. {acc.balance.toLocaleString()})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchSelector
+                    items={accounts}
+                    value={formData.toAccountId}
+                    onChange={(val) => setFormData(prev => ({ ...prev, toAccountId: val }))}
+                    placeholder="Choose account"
+                    searchPlaceholder="Search account..."
+                    getSearchFields={(acc) => [acc.name, acc.typeName]}
+                    itemKey={(acc) => acc.id}
+                    renderTrigger={(selected) =>
+                      selected ? (
+                        <span>{selected.name} <span className="text-slate-400 text-xs ml-1">(Rs. {selected.balance.toLocaleString()})</span></span>
+                      ) : (
+                        <span className="text-slate-400">Choose account</span>
+                      )
+                    }
+                    renderItem={(acc) => (
+                      <div className="flex justify-between items-center w-full text-left">
+                        <span className="font-medium text-slate-800">{acc.name}</span>
+                        <span className="text-xs text-slate-400 font-mono">Rs. {acc.balance.toLocaleString()}</span>
+                      </div>
+                    )}
+                  />
                 </div>
               </div>
 

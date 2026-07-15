@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { SearchSelector } from "@/components/ui/SearchSelector";
 import { BookOpen, Calendar, Printer, Search, ArrowUpRight, ArrowDownRight, Wallet, ArrowRight } from "lucide-react";
 
 interface Account {
@@ -501,17 +502,28 @@ export const GeneralLedgerManager = () => {
         <div className="flex flex-col md:flex-row gap-4 bg-slate-50 p-4 border rounded-xl print-hide items-end">
           <div className="flex-1 space-y-1 w-full">
             <label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5"><Wallet size={12} /> Select Account</label>
-            <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-              <SelectTrigger className="w-full bg-white">
-                <SelectValue placeholder="Choose account to view ledger" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Accounts (Summary)</SelectItem>
-                {accounts.map(acc => (
-                  <SelectItem key={acc.id} value={acc.id}>{acc.name} ({acc.typeName})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchSelector
+              items={[{ id: "ALL", name: "All Accounts (Summary)", typeName: "Summary" }, ...accounts]}
+              value={selectedAccountId}
+              onChange={setSelectedAccountId}
+              placeholder="Choose account to view ledger"
+              searchPlaceholder="Search account..."
+              getSearchFields={(acc) => [acc.name, acc.typeName]}
+              itemKey={(acc) => acc.id}
+              renderTrigger={(selected) =>
+                selected ? (
+                  <span>{selected.name} {selected.id !== "ALL" && <span className="text-slate-400 text-xs ml-1">({selected.typeName})</span>}</span>
+                ) : (
+                  <span className="text-slate-400">Choose account to view ledger</span>
+                )
+              }
+              renderItem={(acc) => (
+                <div className="flex justify-between items-center w-full text-left">
+                  <span className="font-medium text-slate-800">{acc.name}</span>
+                  {acc.id !== "ALL" && <span className="text-xs text-slate-400 font-mono">({acc.typeName})</span>}
+                </div>
+              )}
+            />
           </div>
 
           <div className="w-full md:w-[150px] space-y-1">

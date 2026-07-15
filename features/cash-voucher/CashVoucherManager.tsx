@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { SearchSelector } from "@/components/ui/SearchSelector";
 import {
   Dialog,
   DialogContent,
@@ -805,16 +806,28 @@ export const CashVoucherManager = () => {
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-500 block">Counter Account * <span className="text-slate-400 font-normal">(source / destination)</span></label>
-                <Select value={formData.counterAccountId} onValueChange={(val) => setFormData(prev => ({ ...prev, counterAccountId: val }))}>
-                  <SelectTrigger className="w-full bg-white">
-                    <SelectValue placeholder="Choose counter account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts.filter(a => a.id !== formData.cashAccountId).map(acc => (
-                      <SelectItem key={acc.id} value={acc.id}>{acc.name} ({acc.typeName})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchSelector
+                  items={accounts.filter(a => a.id !== formData.cashAccountId)}
+                  value={formData.counterAccountId}
+                  onChange={(val) => setFormData(prev => ({ ...prev, counterAccountId: val }))}
+                  placeholder="Choose counter account"
+                  searchPlaceholder="Search account..."
+                  getSearchFields={(acc) => [acc.name, acc.typeName]}
+                  itemKey={(acc) => acc.id}
+                  renderTrigger={(selected) =>
+                    selected ? (
+                      <span>{selected.name} <span className="text-slate-400 text-xs ml-1">({selected.typeName})</span></span>
+                    ) : (
+                      <span className="text-slate-400">Choose counter account</span>
+                    )
+                  }
+                  renderItem={(acc) => (
+                    <div className="flex justify-between items-center w-full text-left">
+                      <span className="font-medium text-slate-800">{acc.name}</span>
+                      <span className="text-xs text-slate-400 font-mono">({acc.typeName})</span>
+                    </div>
+                  )}
+                />
               </div>
 
               {(formData.cashAccountId || formData.counterAccountId) && (
@@ -1020,30 +1033,54 @@ export const CashVoucherManager = () => {
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-500 block">Cash Account * <span className="text-slate-400 font-normal">(e.g. Cash in Hand)</span></label>
-                <Select value={editFormData.cashAccountId} onValueChange={(val) => setEditFormData(prev => ({ ...prev, cashAccountId: val }))}>
-                  <SelectTrigger className="w-full bg-white">
-                    <SelectValue placeholder="Choose cash account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredAccounts.map(acc => (
-                      <SelectItem key={acc.id} value={acc.id}>{acc.name} ({acc.typeName})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchSelector
+                  items={filteredAccounts}
+                  value={editFormData.cashAccountId}
+                  onChange={(val) => setEditFormData(prev => ({ ...prev, cashAccountId: val }))}
+                  placeholder="Choose cash account"
+                  searchPlaceholder="Search account..."
+                  getSearchFields={(acc) => [acc.name, acc.typeName]}
+                  itemKey={(acc) => acc.id}
+                  renderTrigger={(selected) =>
+                    selected ? (
+                      <span>{selected.name} <span className="text-slate-400 text-xs ml-1">({selected.typeName})</span></span>
+                    ) : (
+                      <span className="text-slate-400">Choose cash account</span>
+                    )
+                  }
+                  renderItem={(acc) => (
+                    <div className="flex justify-between items-center w-full text-left">
+                      <span className="font-medium text-slate-800">{acc.name}</span>
+                      <span className="text-xs text-slate-400 font-mono">({acc.typeName})</span>
+                    </div>
+                  )}
+                />
               </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-500 block">Counter Account * <span className="text-slate-400 font-normal">(source / destination)</span></label>
-                <Select value={editFormData.counterAccountId} onValueChange={(val) => setEditFormData(prev => ({ ...prev, counterAccountId: val }))}>
-                  <SelectTrigger className="w-full bg-white">
-                    <SelectValue placeholder="Choose counter account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts.filter(a => a.id !== editFormData.cashAccountId).map(acc => (
-                      <SelectItem key={acc.id} value={acc.id}>{acc.name} ({acc.typeName})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchSelector
+                  items={accounts.filter(a => a.id !== editFormData.cashAccountId)}
+                  value={editFormData.counterAccountId}
+                  onChange={(val) => setEditFormData(prev => ({ ...prev, counterAccountId: val }))}
+                  placeholder="Choose counter account"
+                  searchPlaceholder="Search account..."
+                  getSearchFields={(acc) => [acc.name, acc.typeName]}
+                  itemKey={(acc) => acc.id}
+                  renderTrigger={(selected) =>
+                    selected ? (
+                      <span>{selected.name} <span className="text-slate-400 text-xs ml-1">({selected.typeName})</span></span>
+                    ) : (
+                      <span className="text-slate-400">Choose counter account</span>
+                    )
+                  }
+                  renderItem={(acc) => (
+                    <div className="flex justify-between items-center w-full text-left">
+                      <span className="font-medium text-slate-800">{acc.name}</span>
+                      <span className="text-xs text-slate-400 font-mono">({acc.typeName})</span>
+                    </div>
+                  )}
+                />
               </div>
 
               {(editFormData.cashAccountId || editFormData.counterAccountId) && (

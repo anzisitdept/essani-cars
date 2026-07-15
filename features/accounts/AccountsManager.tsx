@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect, FormEvent } from "react";
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
+import {
+  collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot,
+  query, orderBy, serverTimestamp, getDocs, where
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -13,7 +16,10 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Search, Plus, Pencil, Trash2, Wallet, X, CheckCircle2, AlertTriangle, Store, UserSquare, Phone, CreditCard, FileImage } from "lucide-react";
+import {
+  Search, Pencil, Trash2, Wallet, X, CheckCircle2, AlertTriangle,
+  Store, UserSquare, Phone, CreditCard, FileImage, Loader2
+} from "lucide-react";
 import Link from "next/link";
 
 interface Account {
@@ -44,6 +50,7 @@ export const AccountsManager = () => {
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [message, setMessage] = useState("");
 
   // Form State
@@ -63,14 +70,26 @@ export const AccountsManager = () => {
 
   // Fetch Accounts and Account Types
   useEffect(() => {
+    setDataLoading(true);
+    let accountsReady = false;
+    let typesReady = false;
+
+    const checkReady = () => {
+      if (accountsReady && typesReady) setDataLoading(false);
+    };
+
     const qAccounts = query(collection(db, "accounts"), orderBy("name"));
     const unsubAccounts = onSnapshot(qAccounts, (snapshot) => {
       setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
+      accountsReady = true;
+      checkReady();
     });
 
     const qTypes = query(collection(db, "account-types"), orderBy("name"));
     const unsubTypes = onSnapshot(qTypes, (snapshot) => {
       setAccountTypes(snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name } as AccountType)));
+      typesReady = true;
+      checkReady();
     });
 
     return () => {
@@ -80,10 +99,10 @@ export const AccountsManager = () => {
   }, []);
 
   const resetForm = () => {
-    setFormData({ 
-      name: "", 
-      typeId: "", 
-      balance: "0", 
+    setFormData({
+      name: "",
+      typeId: "",
+      balance: "0",
       balanceType: "debit",
       description: "",
       shopName: "",
@@ -106,9 +125,9 @@ export const AccountsManager = () => {
       balanceType: isCredit ? "credit" : "debit",
       description: account.description || "",
       shopName: account.shopName || "",
-      fatherName: account.fatherName || "",
-      phoneNumber: account.phoneNumber || "",
-      cnic: account.cnic || "",
+      fatherName: investorFatherName,
+      phoneNumber: investorPhone,
+      cnic: investorCnic,
       cnicPicture: account.cnicPicture || ""
     });
     setCnicFile(null);
@@ -120,7 +139,7 @@ export const AccountsManager = () => {
     if (confirm(`Are you sure you want to delete the account "${name}"?`)) {
       try {
         await deleteDoc(doc(db, "accounts", id));
-        
+
         if (user) {
           await addDoc(collection(db, "logs"), {
             action: `Deleted account: ${name}`,
@@ -129,7 +148,7 @@ export const AccountsManager = () => {
             type: "ADMIN_ACTION"
           });
         }
-        
+
         setMessage("Success: Account deleted successfully.");
       } catch (error: any) {
         console.error("Error deleting account:", error);
@@ -169,10 +188,10 @@ export const AccountsManager = () => {
       if (cnicFile) {
         const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
         if (!apiKey) throw new Error("ImgBB API key is not configured.");
-        
+
         const form = new FormData();
         form.append("image", cnicFile);
-        
+
         const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
           method: "POST",
           body: form
@@ -205,7 +224,7 @@ export const AccountsManager = () => {
 
       if (isEditing) {
         await updateDoc(doc(db, "accounts", isEditing), payload);
-        
+
         await addDoc(collection(db, "logs"), {
           action: `Updated account: ${formData.name}`,
           performedBy: user.uid,
@@ -235,29 +254,56 @@ export const AccountsManager = () => {
         if (initialBal !== 0) {
           const today = new Date().toISOString().split("T")[0];
           await addDoc(collection(db, "vouchers"), {
-            voucherNo: `OB-${accountRef.id.slice(-6).toUpperCase()}`,
+            voucherNo: `OB-DR-${accountRef.id.slice(-6).toUpperCase()}`,
             date: today,
-            description: `Opening Balance — ${formData.name.trim()}`,
-            amount: Math.abs(initialBal),
-            debit: initialBal > 0 ? Math.abs(initialBal) : 0,
-            credit: initialBal < 0 ? Math.abs(initialBal) : 0,
-            // New double-entry format
+            description: `Opening Debit Balance — ${formData.name.trim()}`,
+            amount: debitVal,
+            debit: debitVal,
+            credit: 0,
             cashAccountId: accountRef.id,
             cashAccountName: formData.name.trim(),
-            cashType: initialBal > 0 ? "debit" : "credit",
+            cashType: "debit",
             cashPreviousBalance: 0,
-            cashNewBalance: initialBal,
+            cashNewBalance: debitVal,
             counterAccountId: null,
             counterAccountName: "Opening Balance (Equity)",
-            counterType: initialBal > 0 ? "credit" : "debit",
+            counterType: "credit",
             counterPreviousBalance: null,
             counterNewBalance: null,
-            // Backward compat
             accountId: accountRef.id,
             accountName: formData.name.trim(),
-            type: initialBal > 0 ? "debit" : "credit",
+            type: "debit",
             previousBalance: 0,
-            newBalance: initialBal,
+            newBalance: debitVal,
+            isOpeningBalance: true,
+            invoiceType: "OPENING_BALANCE",
+            createdBy: user.uid,
+            createdAt: serverTimestamp()
+          });
+        }
+        if (creditVal > 0) {
+          await addDoc(collection(db, "vouchers"), {
+            voucherNo: `OB-CR-${accountRef.id.slice(-6).toUpperCase()}`,
+            date: today,
+            description: `Opening Credit Balance — ${formData.name.trim()}`,
+            amount: creditVal,
+            debit: 0,
+            credit: creditVal,
+            cashAccountId: accountRef.id,
+            cashAccountName: formData.name.trim(),
+            cashType: "credit",
+            cashPreviousBalance: debitVal,
+            cashNewBalance: netBalance,
+            counterAccountId: null,
+            counterAccountName: "Opening Balance (Equity)",
+            counterType: "debit",
+            counterPreviousBalance: null,
+            counterNewBalance: null,
+            accountId: accountRef.id,
+            accountName: formData.name.trim(),
+            type: "credit",
+            previousBalance: debitVal,
+            newBalance: netBalance,
             isOpeningBalance: true,
             invoiceType: "OPENING_BALANCE",
             createdBy: user.uid,
@@ -273,7 +319,6 @@ export const AccountsManager = () => {
         });
 
         setMessage("Success: Account created successfully.");
-
       }
       resetForm();
     } catch (error: any) {
@@ -296,6 +341,25 @@ export const AccountsManager = () => {
   const selectedTypeObj = accountTypes.find(t => t.id === formData.typeId);
   const isBankSelected = selectedTypeObj?.name.toLowerCase() === "bank";
   const showExtraFields = formData.typeId && !isBankSelected;
+
+  // --- Loading skeleton ---
+  if (dataLoading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="animate-pulse space-y-4 p-6 bg-white rounded-xl border border-slate-100">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-9 bg-slate-100 rounded-lg" />
+          ))}
+        </div>
+        <div className="lg:col-span-2 animate-pulse space-y-3 p-6 bg-white rounded-xl border border-slate-100">
+          <div className="h-9 bg-slate-100 rounded-lg mb-4" />
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-16 bg-slate-100 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto">
@@ -389,14 +453,14 @@ export const AccountsManager = () => {
                     <FileImage size={12} /> CNIC Picture / Scan
                   </label>
                   <div className="flex items-center gap-2">
-                    <Input 
-                      type="file" 
+                    <Input
+                      type="file"
                       accept="image/*"
                       onChange={e => {
                         if (e.target.files && e.target.files.length > 0) {
                           setCnicFile(e.target.files[0]);
                         }
-                      }} 
+                      }}
                       className="file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     />
                   </div>
@@ -414,17 +478,17 @@ export const AccountsManager = () => {
                 Initial Balance / Current Balance
               </label>
               <div className="flex gap-2">
-                <Input 
-                  type="number" 
-                  step="0.01" 
+                <Input
+                  type="number"
+                  step="0.01"
                   min="0"
-                  value={formData.balance} 
-                  onChange={e => setFormData({ ...formData, balance: e.target.value })} 
-                  placeholder="0.00" 
+                  value={formData.balance}
+                  onChange={e => setFormData({ ...formData, balance: e.target.value })}
+                  placeholder="0.00"
                   className="flex-1"
                 />
-                <Select 
-                  value={formData.balanceType} 
+                <Select
+                  value={formData.balanceType}
                   onValueChange={(val) => setFormData(prev => ({ ...prev, balanceType: val }))}
                 >
                   <SelectTrigger className="w-[120px] bg-white">
@@ -446,7 +510,11 @@ export const AccountsManager = () => {
             </div>
 
             <Button type="submit" className="w-full bg-slate-900 mt-2" disabled={loading}>
-              {isEditing ? "Update Account" : "Add Account"}
+              {loading ? (
+                <><Loader2 size={16} className="mr-2 animate-spin" /> {isEditing ? "Updating..." : "Creating..."}</>
+              ) : (
+                isEditing ? "Update Account" : "Add Account"
+              )}
             </Button>
           </form>
         )}

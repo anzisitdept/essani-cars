@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, Plus, Pencil, Trash2, User, Phone, Mail, MapPin, CreditCard, X, Image as ImageIcon } from "lucide-react";
+import { Search, Pencil, Trash2, User, Phone, Mail, MapPin, CreditCard, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { InvestorAssetsModal } from "./InvestorAssetsModal";
 import { SignatureCapture, SignatureCaptureRef } from "@/components/SignatureCapture";
 import { uploadToImgBB } from "@/lib/imgbbUpload";
@@ -30,6 +30,8 @@ export const InvestorManager = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [assetsInvestor, setAssetsInvestor] = useState<Investor | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -51,6 +53,7 @@ export const InvestorManager = () => {
     const q = query(collection(db, "investors"), orderBy("name"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setInvestors(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Investor)));
+      setDataLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -100,6 +103,7 @@ export const InvestorManager = () => {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setIsSubmitting(true);
 
     // CNIC Validation
     const cnicRegex = /^\d{5}-\d{7}-\d{1}$/;
@@ -214,6 +218,8 @@ export const InvestorManager = () => {
     } catch (error) {
       console.error("Error saving investor:", error);
       alert("Failed to save investor.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -221,6 +227,25 @@ export const InvestorManager = () => {
     i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     i.phone.includes(searchTerm)
   );
+
+  // --- Loading skeleton ---
+  if (dataLoading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="animate-pulse space-y-4 p-6 bg-white rounded-xl border border-slate-100">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-9 bg-slate-100 rounded-lg" />
+          ))}
+        </div>
+        <div className="lg:col-span-2 animate-pulse space-y-3 p-6 bg-white rounded-xl border border-slate-100">
+          <div className="h-9 bg-slate-100 rounded-lg mb-4" />
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-16 bg-slate-100 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto lg:h-[calc(100vh-200px)]">
@@ -290,8 +315,12 @@ export const InvestorManager = () => {
             )}
           </div>
 
-          <Button type="submit" className="w-full bg-slate-900" disabled={uploadingSignature}>
-            {isEditing ? "Update Investor" : "Add Investor"}
+          <Button type="submit" className="w-full bg-slate-900" disabled={uploadingSignature || isSubmitting}>
+            {(uploadingSignature || isSubmitting) ? (
+              <><Loader2 size={16} className="mr-2 animate-spin" /> {isEditing ? "Updating..." : "Adding..."}</>
+            ) : (
+              isEditing ? "Update Investor" : "Add Investor"
+            )}
           </Button>
         </form>
       </Card>

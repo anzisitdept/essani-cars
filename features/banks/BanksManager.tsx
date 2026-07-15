@@ -1,22 +1,19 @@
 "use client";
 import { useState, useEffect, FormEvent } from "react";
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, where } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import {
+  collection, updateDoc, doc, onSnapshot,
+  query, orderBy, serverTimestamp, addDoc, getDocs, where
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { Search, Plus, Pencil, Trash2, Landmark, X, CheckCircle2, AlertTriangle, Building, CreditCard, Hash, Store, UserSquare, Phone, FileImage, UploadCloud } from "lucide-react";
+  Search, Pencil, Landmark, X, CheckCircle2, Building, CreditCard, Hash, Loader2, Info
+} from "lucide-react";
 
-interface Account {
+interface BankAccount {
   id: string;
   name: string;
   typeId: string;
@@ -26,30 +23,20 @@ interface Account {
   accountNumber?: string;
   iban?: string;
   bankName?: string;
-  shopName?: string;
-  fatherName?: string;
-  phoneNumber?: string;
-  cnic?: string;
-  cnicPicture?: string;
   createdAt: any;
 }
 
-const hardcodedAccountTypes = [
-  { id: "bank", name: "Bank" },
-  { id: "investor", name: "Investor" },
-  { id: "client", name: "Clients" }
-];
-
 export const BanksManager = () => {
   const { user } = useAuth();
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [bankTypeId, setBankTypeId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [typeFilter, setTypeFilter] = useState("ALL");
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  // Form State
+  // Form state — edit only: bank-specific details
   const [formData, setFormData] = useState({
     name: "",
     typeId: "bank",
@@ -58,35 +45,60 @@ export const BanksManager = () => {
     description: "",
     accountNumber: "",
     iban: "",
-    bankName: "",
-    shopName: "",
-    fatherName: "",
-    phoneNumber: "",
-    cnic: "",
-    cnicPicture: "",
+    description: "",
   });
 
-  const [cnicFile, setCnicFile] = useState<File | null>(null);
-
-  // Fetch Accounts (only those that match our hardcoded types)
+  // 1) Find the real "Bank" account-type ID from Firestore
   useEffect(() => {
-    const validTypes = hardcodedAccountTypes.map(t => t.id);
-    const qAccounts = query(
+    const fetchBankTypeId = async () => {
+      try {
+        const q = query(collection(db, "account-types"), where("name", "==", "Bank"));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          setBankTypeId(snap.docs[0].id);
+        } else {
+          // Try case-insensitive fallback
+          const allQ = query(collection(db, "account-types"));
+          const allSnap = await getDocs(allQ);
+          const found = allSnap.docs.find(d => d.data().name?.toLowerCase() === "bank");
+          if (found) setBankTypeId(found.id);
+        }
+      } catch (err) {
+        console.error("Error fetching bank type:", err);
+      }
+    };
+    fetchBankTypeId();
+  }, []);
+
+  // 2) Once bankTypeId is known, subscribe to bank accounts
+  useEffect(() => {
+    if (bankTypeId === null) return;
+
+    const q = query(
       collection(db, "accounts"),
-      where("typeId", "in", validTypes)
+      where("typeId", "==", bankTypeId),
+      orderBy("name")
     );
-    
-    const unsubAccounts = onSnapshot(qAccounts, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
-      // Sort client-side since we use 'in' query
-      data.sort((a, b) => a.name.localeCompare(b.name));
+
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BankAccount));
       setAccounts(data);
+      setDataLoading(false);
+    }, (err) => {
+      console.error("Error loading bank accounts:", err);
+      // Fallback: load all and filter by typeName
+      const fallbackQ = query(collection(db, "accounts"), orderBy("name"));
+      onSnapshot(fallbackQ, (snap) => {
+        const filtered = snap.docs
+          .map(d => ({ id: d.id, ...d.data() } as BankAccount))
+          .filter(a => a.typeName?.toLowerCase() === "bank");
+        setAccounts(filtered);
+        setDataLoading(false);
+      });
     });
 
-    return () => {
-      unsubAccounts();
-    };
-  }, []);
+    return () => unsub();
+  }, [bankTypeId]);
 
   const resetForm = () => {
     setFormData({ 
@@ -119,58 +131,15 @@ export const BanksManager = () => {
       description: account.description || "",
       accountNumber: account.accountNumber || "",
       iban: account.iban || "",
-      bankName: account.bankName || "",
-      shopName: account.shopName || "",
-      fatherName: account.fatherName || "",
-      phoneNumber: account.phoneNumber || "",
-      cnic: account.cnic || "",
-      cnicPicture: account.cnicPicture || "",
+      description: account.description || "",
     });
-    setCnicFile(null);
     setIsEditing(account.id);
     setMessage("");
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (confirm(`Are you sure you want to delete the account "${name}"?`)) {
-      try {
-        await deleteDoc(doc(db, "accounts", id));
-        
-        if (user) {
-          await addDoc(collection(db, "logs"), {
-            action: `Deleted bank/special account: ${name}`,
-            performedBy: user.uid,
-            timestamp: serverTimestamp(),
-            type: "ADMIN_ACTION"
-          });
-        }
-        
-        setMessage("Success: Account deleted successfully.");
-      } catch (error: any) {
-        console.error("Error deleting account:", error);
-        setMessage(`Error: ${error.message}`);
-      }
-    }
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-
-    if (!formData.name.trim()) {
-      setMessage("Error: Account name is required");
-      return;
-    }
-
-    if (!formData.typeId) {
-      setMessage("Error: Please select an account type");
-      return;
-    }
-
-    if (formData.typeId !== "bank" && !formData.phoneNumber.trim()) {
-      setMessage("Error: Phone number is required for this account type");
-      return;
-    }
+    if (!user || !isEditing) return;
 
     setLoading(true);
     setMessage("");
@@ -197,12 +166,7 @@ export const BanksManager = () => {
         description: formData.description.trim(),
         accountNumber: formData.accountNumber.trim(),
         iban: formData.iban.trim(),
-        bankName: formData.bankName.trim(),
-        shopName: formData.shopName.trim(),
-        fatherName: formData.fatherName.trim(),
-        phoneNumber: formData.phoneNumber.trim(),
-        cnic: formData.cnic.trim(),
-        cnicPicture: cnicPicUrl,
+        description: formData.description.trim(),
         updatedBy: user.uid,
         updatedAt: serverTimestamp()
       };
@@ -273,40 +237,64 @@ export const BanksManager = () => {
           type: "ADMIN_ACTION"
         });
 
-        setMessage("Success: Account created successfully.");
-      }
+      setMessage("Success: Bank details updated successfully.");
       resetForm();
     } catch (error: any) {
-      console.error("Error saving account:", error);
+      console.error("Error updating bank:", error);
       setMessage(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredAccounts = accounts.filter(a => {
-    const matchesSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (a.description && a.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (a.accountNumber && a.accountNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (a.iban && a.iban.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (a.shopName && a.shopName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (a.phoneNumber && a.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesType = typeFilter === "ALL" || a.typeId === typeFilter;
-    return matchesSearch && matchesType;
-  });
+  const filteredAccounts = accounts.filter(a =>
+    a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (a.bankName && a.bankName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (a.accountNumber && a.accountNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (a.iban && a.iban.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (a.description && a.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  // --- Loading skeleton ---
+  if (dataLoading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="animate-pulse space-y-4 p-6 bg-white rounded-xl border border-slate-100">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-9 bg-slate-100 rounded-lg" />
+          ))}
+        </div>
+        <div className="lg:col-span-2 animate-pulse space-y-3 p-6 bg-white rounded-xl border border-slate-100">
+          <div className="h-9 bg-slate-100 rounded-lg mb-4" />
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-16 bg-slate-100 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto">
-      {/* Left: Form */}
+      {/* Left: Edit Form */}
       <Card className="p-6 h-fit">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-lg">{isEditing ? "Edit Account" : "Add New Account"}</h3>
+          <h3 className="font-semibold text-lg">
+            {isEditing ? "Edit Bank Details" : "Select a Bank to Edit"}
+          </h3>
           {isEditing && (
             <Button variant="ghost" size="sm" onClick={resetForm} className="h-8 w-8 p-0">
               <X size={16} />
             </Button>
           )}
         </div>
+
+        {!isEditing && (
+          <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg text-blue-700 text-xs mb-4">
+            <Info size={14} className="shrink-0 mt-0.5" />
+            <p>Click the <strong>edit</strong> button on a bank account to update its Bank Name, Account Number, and IBAN. To create or delete bank accounts, use the <strong>Accounts Manager</strong>.</p>
+          </div>
+        )}
 
         {message && (
           <div className={`mb-4 p-3 rounded text-xs font-medium flex items-center gap-2 ${message.includes('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
@@ -315,98 +303,29 @@ export const BanksManager = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
-              <Landmark size={12} /> Account Name *
-            </label>
-            <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Main Branch HBL..." />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-500 block">
-              Account Type *
-            </label>
-            <Select disabled value={formData.typeId} onValueChange={(val) => setFormData(prev => ({ ...prev, typeId: val }))}>
-              <SelectTrigger className="w-full bg-slate-50 cursor-not-allowed text-slate-500">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                {hardcodedAccountTypes.map(type => (
-                  <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {formData.typeId !== "bank" && (
-            <div className="space-y-4 p-4 border rounded-xl bg-slate-50/50">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
-                  <Store size={12} /> Shop Name
-                </label>
-                <Input value={formData.shopName} onChange={e => setFormData({ ...formData, shopName: e.target.value })} placeholder="Shop / Business Name" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
-                  <UserSquare size={12} /> Father Name
-                </label>
-                <Input value={formData.fatherName} onChange={e => setFormData({ ...formData, fatherName: e.target.value })} placeholder="Father's Name" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
-                  <Phone size={12} /> Phone Number *
-                </label>
-                <Input required={formData.typeId !== "bank"} value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} placeholder="e.g. 03001234567" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
-                  <CreditCard size={12} /> CNIC / ID
-                </label>
-                <Input value={formData.cnic} onChange={e => setFormData({ ...formData, cnic: e.target.value })} placeholder="XXXXX-XXXXXXX-X" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
-                  <FileImage size={12} /> CNIC Picture / Scan
-                </label>
-                <div className="flex items-center gap-2">
-                  <Input 
-                    type="file" 
-                    accept="image/*"
-                    onChange={e => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setCnicFile(e.target.files[0]);
-                      }
-                    }} 
-                    className="file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                </div>
-                {(formData.cnicPicture || cnicFile) && (
-                  <div className="text-[10px] text-green-600 font-medium flex items-center gap-1 mt-1">
-                    <CheckCircle2 size={12} /> {cnicFile ? "New image selected" : "Image previously uploaded"}
-                  </div>
-                )}
-              </div>
+        {isEditing ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                <Building size={12} /> Bank Name
+              </label>
+              <Input
+                value={formData.bankName}
+                onChange={e => setFormData({ ...formData, bankName: e.target.value })}
+                placeholder="e.g. HBL, Meezan Bank, UBL"
+              />
             </div>
-          )}
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
-              <Building size={12} /> Bank Name
-            </label>
-            <Input value={formData.bankName} onChange={e => setFormData({ ...formData, bankName: e.target.value })} placeholder="e.g. HBL, Meezan Bank" />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
-              <Hash size={12} /> Account Number
-            </label>
-            <Input value={formData.accountNumber} onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} placeholder="Account Number" />
-          </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                <Hash size={12} /> Account Number
+              </label>
+              <Input
+                value={formData.accountNumber}
+                onChange={e => setFormData({ ...formData, accountNumber: e.target.value })}
+                placeholder="Account Number"
+              />
+            </div>
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
@@ -444,92 +363,89 @@ export const BanksManager = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-500">
-              Description / Notes
-            </label>
-            <Input value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Brief info (optional)" />
-          </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-slate-500">
+                Description / Notes
+              </label>
+              <Input
+                value={formData.description}
+                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Branch, purpose, etc."
+              />
+            </div>
 
-          <Button type="submit" className="w-full bg-slate-900 mt-2" disabled={loading}>
-            {isEditing ? "Update Account" : "Add Account"}
-          </Button>
-        </form>
+            <div className="flex gap-2">
+              <Button type="submit" className="flex-1 bg-slate-900" disabled={loading}>
+                {loading ? (
+                  <><Loader2 size={16} className="mr-2 animate-spin" /> Saving...</>
+                ) : (
+                  "Save Bank Details"
+                )}
+              </Button>
+              <Button type="button" variant="outline" onClick={resetForm} disabled={loading}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="text-center py-8 text-slate-400">
+            <Landmark size={40} className="mx-auto mb-3 text-slate-200" />
+            <p className="text-sm">Select a bank from the list to edit its details</p>
+          </div>
+        )}
       </Card>
 
-      {/* Right: List */}
+      {/* Right: Bank List */}
       <Card className="lg:col-span-2 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row gap-4 justify-between">
+        <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 text-slate-400" size={16} />
             <Input
               className="pl-9 bg-white"
-              placeholder="Search by name, IBAN, notes..."
+              placeholder="Search by name, bank, IBAN..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[150px] bg-white">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Types</SelectItem>
-                {hardcodedAccountTypes.map(type => (
-                  <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="text-xs text-slate-500 font-medium px-2 shrink-0">
-              {filteredAccounts.length} Accounts
-            </div>
+          <div className="text-xs text-slate-500 font-medium px-2 shrink-0">
+            {filteredAccounts.length} Bank{filteredAccounts.length !== 1 ? "s" : ""}
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[300px]">
           {filteredAccounts.map(account => (
-            <div key={account.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all">
+            <div
+              key={account.id}
+              className={`group flex items-center justify-between p-4 bg-white border rounded-xl hover:shadow-sm transition-all ${
+                isEditing === account.id
+                  ? "border-blue-300 bg-blue-50/30 shadow-sm"
+                  : "border-slate-100 hover:border-blue-200"
+              }`}
+            >
               <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold">
-                  {account.name.charAt(0).toUpperCase()}
+                <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold shrink-0">
+                  <Landmark size={18} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-semibold text-slate-900">
-                      {account.name}
-                    </h4>
-                    <span className="text-[10px] bg-slate-100 text-slate-600 font-bold uppercase px-1.5 py-0.5 rounded">
-                      {account.typeName}
-                    </span>
+                    <h4 className="font-semibold text-slate-900">{account.name}</h4>
+                    {isEditing === account.id && (
+                      <span className="text-[10px] bg-blue-100 text-blue-700 font-bold uppercase px-1.5 py-0.5 rounded">Editing</span>
+                    )}
                   </div>
                   {account.bankName && (
-                    <div className="text-xs text-slate-700 mt-1 flex gap-2 font-medium">
-                      Bank: {account.bankName}
-                    </div>
-                  )}
-                  {account.shopName && (
-                    <div className="text-xs text-blue-700 mt-1 flex gap-2 font-semibold">
-                      Shop: {account.shopName}
-                    </div>
-                  )}
-                  {(account.phoneNumber || account.fatherName || account.cnic) && (
-                    <div className="text-[11px] text-slate-600 mt-1 space-x-2">
-                      {account.phoneNumber && <span>📞 {account.phoneNumber}</span>}
-                      {account.fatherName && <span>👤 S/O {account.fatherName}</span>}
-                      {account.cnic && <span>🪪 {account.cnic}</span>}
+                    <div className="text-xs text-slate-700 mt-0.5 font-medium flex items-center gap-1">
+                      <Building size={10} /> {account.bankName}
                     </div>
                   )}
                   {(account.accountNumber || account.iban) && (
-                    <div className="text-xs text-slate-500 mt-1 flex gap-3">
+                    <div className="text-xs text-slate-500 mt-0.5 flex gap-3">
                       {account.accountNumber && <span>A/C: {account.accountNumber}</span>}
                       {account.iban && <span>IBAN: {account.iban}</span>}
                     </div>
                   )}
                   {account.description && (
-                    <p className="text-xs text-slate-400 mt-0.5 italic">
-                      {account.description}
-                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5 italic">{account.description}</p>
                   )}
                 </div>
               </div>
@@ -539,15 +455,18 @@ export const BanksManager = () => {
                   <div className={`text-sm font-bold ${account.balance < 0 ? "text-red-600" : "text-slate-900"}`}>
                     Rs. {Math.abs(account.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {account.balance < 0 ? "Cr" : "Dr"}
                   </div>
-                  <div className="text-[10px] text-slate-400">Balance</div>
+                  <div className="text-[10px] text-slate-400">{account.balance >= 0 ? "Balance (Dr)" : "Balance (Cr)"}</div>
                 </div>
 
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="sm" onClick={() => handleEdit(account)} title="Edit">
-                    <Pencil size={16} className="text-blue-600" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(account.id, account.name)} title="Delete">
-                    <Trash2 size={16} className="text-red-500" />
+                <div className="flex gap-2">
+                  <Button
+                    variant={isEditing === account.id ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => isEditing === account.id ? resetForm() : handleEdit(account)}
+                    title={isEditing === account.id ? "Cancel editing" : "Edit bank details"}
+                    className={isEditing === account.id ? "bg-blue-600 hover:bg-blue-700" : "opacity-0 group-hover:opacity-100 transition-opacity"}
+                  >
+                    {isEditing === account.id ? <X size={16} /> : <Pencil size={16} className="text-blue-600" />}
                   </Button>
                 </div>
               </div>
@@ -555,8 +474,10 @@ export const BanksManager = () => {
           ))}
 
           {filteredAccounts.length === 0 && (
-            <div className="text-center py-12 text-slate-400">
-              <p>No accounts found.</p>
+            <div className="text-center py-16 text-slate-400">
+              <Landmark size={48} className="mx-auto mb-3 text-slate-200" />
+              <p className="font-medium">No bank accounts found</p>
+              <p className="text-xs mt-1">Create bank accounts in the Accounts Manager with type "Bank"</p>
             </div>
           )}
         </div>

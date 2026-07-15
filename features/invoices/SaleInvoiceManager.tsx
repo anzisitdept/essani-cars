@@ -16,6 +16,8 @@ import {
   CheckCircle2, Loader2, Car, DollarSign, Users, Wallet,
   FileText, Info, TrendingUp, TrendingDown, AlertTriangle, ShoppingBag
 } from "lucide-react";
+import { SearchSelector } from "@/components/ui/SearchSelector";
+import { VehicleSelector } from "@/features/inventory/VehicleSelector";
 
 export const SaleInvoiceManager = () => {
   const { user } = useAuth();
@@ -315,25 +317,17 @@ export const SaleInvoiceManager = () => {
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
               <Car size={13} /> Select Vehicle (Available for Sale) *
             </label>
-            <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
-              <SelectTrigger className="bg-white h-11 text-sm">
-                <SelectValue placeholder="Choose a vehicle to sell..." />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {vehicles.length === 0 ? (
-                  <div className="p-4 text-center text-slate-400 text-xs">No available vehicles found. Generate a Purchase Invoice first.</div>
-                ) : (
-                  vehicles.map(v => (
-                    <SelectItem key={v.id} value={v.id}>
-                      <span className="font-semibold">{v.brandName} {v.model}</span>
-                      <span className="text-slate-400 ml-2 text-xs">
-                        {v.modelYear || v.year} · {v.color} · Cost: Rs. {Number(v.purchasePrice).toLocaleString()}
-                      </span>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            {vehicles.length === 0 ? (
+              <div className="p-4 text-center text-slate-400 text-xs border border-dashed border-slate-200 rounded-lg">No available vehicles found. Generate a Purchase Invoice first.</div>
+            ) : (
+              <VehicleSelector
+                vehicles={vehicles}
+                value={selectedVehicleId}
+                onChange={setSelectedVehicleId}
+                placeholder="Choose a vehicle to sell..."
+                showCost={true}
+              />
+            )}
             {vehicles.length === 0 && (
               <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
                 <AlertTriangle size={12} /> All vehicles are either sold or haven't had a Purchase Invoice generated yet.
@@ -422,19 +416,30 @@ export const SaleInvoiceManager = () => {
                 <label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
                   <Wallet size={12} /> Receiving Account (Cash / Bank) *
                 </label>
-                <Select value={receivingAccountId} onValueChange={setReceivingAccountId}>
-                  <SelectTrigger className="bg-white h-10">
-                    <SelectValue placeholder="Select account to receive sale proceeds..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts.map(acc => (
-                      <SelectItem key={acc.id} value={acc.id}>
-                        {acc.name}
-                        <span className="text-slate-400 ml-2 text-xs">(Rs. {Number(acc.balance).toLocaleString()})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchSelector
+                  items={accounts}
+                  value={receivingAccountId}
+                  onChange={setReceivingAccountId}
+                  placeholder="Select account to receive sale proceeds..."
+                  searchPlaceholder="Search account..."
+                  getSearchFields={(acc) => [acc.name, acc.typeName]}
+                  itemKey={(acc) => acc.id}
+                  renderTrigger={(selected) =>
+                    selected ? (
+                      <span>
+                        {selected.name} <span className="text-slate-400 text-xs ml-1">(Rs. {Number(selected.balance).toLocaleString()})</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Select account to receive sale proceeds...</span>
+                    )
+                  }
+                  renderItem={(acc) => (
+                    <div className="flex justify-between items-center w-full text-left">
+                      <span className="font-medium text-slate-800">{acc.name}</span>
+                      <span className="text-xs text-slate-500 font-mono">Rs. {Number(acc.balance).toLocaleString()}</span>
+                    </div>
+                  )}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
