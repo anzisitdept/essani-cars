@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { PurchaseInvoiceManager } from "@/features/invoices/PurchaseInvoiceManager";
 
 export default function PurchaseInvoicePage() {
@@ -9,7 +10,9 @@ export default function PurchaseInvoicePage() {
           Create a purchase invoice by selecting a registered vehicle and entering financial details.
         </p>
       </div>
-      <PurchaseInvoiceManager />
+      <Suspense fallback={<div className="text-slate-400 text-sm">Loading...</div>}>
+        <PurchaseInvoiceManager />
+      </Suspense>
     </div>
   );
 }

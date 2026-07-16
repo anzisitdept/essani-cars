@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { SearchSelector } from "@/components/ui/SearchSelector";
 import { VehicleSelector } from "@/features/inventory/VehicleSelector";
+import { QuickAddClientDialog } from "./QuickAddClientDialog";
+import { UserPlus } from "lucide-react";
 
 export const SaleInvoiceManager = () => {
   const { user } = useAuth();
@@ -44,6 +46,7 @@ export const SaleInvoiceManager = () => {
   // UI
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [showQuickAddClient, setShowQuickAddClient] = useState(false);
 
   // Fetch vehicles
   useEffect(() => {
@@ -161,7 +164,7 @@ export const SaleInvoiceManager = () => {
         tx.set(doc(collection(db, "vouchers")), {
           voucherNo: "SI-" + Math.floor(100000 + Math.random() * 900000),
           date: vDate,
-          description: `Sale Invoice: ${selectedVehicle.brandName} ${selectedVehicle.model} \u00b7 Chassis: ${selectedVehicle.chassisNumber?.slice(-4) || ""} \u00b7 Buyer: ${buyerName || "N/A"} \u00b7 Profit: ${saleProfit >= 0 ? "+" : ""}Rs. ${saleProfit.toLocaleString()}`,
+          description: `Sale Invoice: ${selectedVehicle.brandName} ${selectedVehicle.model} \u00b7 Chassis: ${selectedVehicle.chassisNumber?.slice(-4) || ""} \u00b7 Buyer: ${buyerName || "N/A"} \u00b7 Reg: ${selectedVehicle.registrationNumber || "Unregistered"}`,
           amount: salePriceVal,
           debit: salePriceVal,
           credit: 0,
@@ -414,15 +417,15 @@ export const SaleInvoiceManager = () => {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                  <Wallet size={12} /> Receiving Account (Cash / Bank) *
+                  <Users size={12} /> Seller *
                 </label>
                 <SearchSelector
                   items={accounts}
                   value={receivingAccountId}
                   onChange={setReceivingAccountId}
-                  placeholder="Select account to receive sale proceeds..."
+                  placeholder="Select seller account..."
                   searchPlaceholder="Search account..."
-                  getSearchFields={(acc) => [acc.name, acc.typeName]}
+                  getSearchFields={(acc) => [acc.name, acc.shopName, acc.typeName]}
                   itemKey={(acc) => acc.id}
                   renderTrigger={(selected) =>
                     selected ? (
@@ -430,15 +433,28 @@ export const SaleInvoiceManager = () => {
                         {selected.name} <span className="text-slate-400 text-xs ml-1">(Rs. {Number(selected.balance).toLocaleString()})</span>
                       </span>
                     ) : (
-                      <span className="text-slate-400">Select account to receive sale proceeds...</span>
+                      <span className="text-slate-400">Select seller account...</span>
                     )
                   }
                   renderItem={(acc) => (
                     <div className="flex justify-between items-center w-full text-left">
-                      <span className="font-medium text-slate-800">{acc.name}</span>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-slate-800">{acc.name}</span>
+                        {acc.shopName && <span className="text-[10px] text-slate-500">{acc.shopName}</span>}
+                      </div>
                       <span className="text-xs text-slate-500 font-mono">Rs. {Number(acc.balance).toLocaleString()}</span>
                     </div>
                   )}
+                  actionNode={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full justify-start text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 h-9 px-2"
+                      onClick={() => setShowQuickAddClient(true)}
+                    >
+                      <UserPlus size={16} className="mr-2" /> Add New Client
+                    </Button>
+                  }
                 />
               </div>
 
@@ -663,6 +679,12 @@ export const SaleInvoiceManager = () => {
           </div>
         )}
       </div>
+
+      <QuickAddClientDialog
+        open={showQuickAddClient}
+        onClose={() => setShowQuickAddClient(false)}
+        onCreated={(accountId) => setReceivingAccountId(accountId)}
+      />
     </div>
   );
 };

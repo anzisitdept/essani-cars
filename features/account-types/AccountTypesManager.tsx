@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 interface AccountType {
   id: string;
   name: string;
+  requireNumberInfo: boolean;
   createdAt: any;
 }
 export const AccountTypesManager = () => {
@@ -27,7 +28,8 @@ export const AccountTypesManager = () => {
 
   // Form State
   const [formData, setFormData] = useState({
-    name: ""
+    name: "",
+    requireNumberInfo: false
   });
 
   // Fetch Account Types
@@ -40,14 +42,15 @@ export const AccountTypesManager = () => {
   }, []);
 
   const resetForm = () => {
-    setFormData({ name: "" });
+    setFormData({ name: "", requireNumberInfo: false });
     setIsEditing(null);
     setMessage("");
   };
 
   const handleEdit = (type: AccountType) => {
     setFormData({
-      name: type.name
+      name: type.name,
+      requireNumberInfo: type.requireNumberInfo ?? false
     });
     setIsEditing(type.id);
     setMessage("");
@@ -99,6 +102,7 @@ export const AccountTypesManager = () => {
     try {
       const payload = {
         name: formData.name.trim(),
+        requireNumberInfo: formData.requireNumberInfo,
         updatedBy: user.uid,
         updatedAt: serverTimestamp()
       };
@@ -179,6 +183,18 @@ export const AccountTypesManager = () => {
             <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Cash in hand, Bank, Investor" />
           </div>
 
+          <div
+            className="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors"
+            onClick={() => setFormData(prev => ({ ...prev, requireNumberInfo: !prev.requireNumberInfo }))}
+          >
+            <div className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out ${formData.requireNumberInfo ? 'bg-blue-600' : 'bg-slate-300'}`}>
+              <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${formData.requireNumberInfo ? 'translate-x-4' : 'translate-x-1'}`} />
+            </div>
+            <label className="text-sm font-medium text-slate-700 cursor-pointer select-none">
+              Require Number Information
+            </label>
+          </div>
+
           <div className="flex gap-2 pt-2">
             <Button type="submit" className="flex-1 bg-slate-900" disabled={loading}>
               {isEditing ? "Update Type" : "Add Type"}
@@ -215,6 +231,11 @@ export const AccountTypesManager = () => {
                   <h4 className="font-semibold text-slate-900">
                     {type.name}
                   </h4>
+                  {type.requireNumberInfo && (
+                    <span className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                      Requires Number Info
+                    </span>
+                  )}
                 </div>
               </div>
 

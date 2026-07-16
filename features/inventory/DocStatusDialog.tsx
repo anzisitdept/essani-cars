@@ -21,6 +21,7 @@ export const DocStatusDialog = ({ isOpen, onClose, vehicle }: DocStatusDialogPro
     const [loading, setLoading] = useState(false);
     const [showExciseDialog, setShowExciseDialog] = useState(false);
     const [showReturnDialog, setShowReturnDialog] = useState(false);
+    const [validationError, setValidationError] = useState<{ title: string, message: string } | null>(null);
 
     if (!vehicle) return null;
 
@@ -29,6 +30,36 @@ export const DocStatusDialog = ({ isOpen, onClose, vehicle }: DocStatusDialogPro
 
     const handleUpdateStatus = async (newStatus: string) => {
         if (!user) return;
+
+        // Validation Logic
+        const validTransitions: Record<string, string[]> = {
+            "Not Applied": ["Showroom", "At Excise"],
+            "Showroom": ["At Excise"],
+            "At Excise": ["Returned Back to Showroom"],
+            "Returned Back to Showroom": ["At Excise"]
+        };
+
+        const allowed = validTransitions[currentStatus] || [];
+        if (!allowed.includes(newStatus)) {
+            let requiredNext = allowed.join(" or ");
+            if (currentStatus === "Showroom" && newStatus === "Returned Back to Showroom") {
+                setValidationError({
+                    title: "Invalid Transition",
+                    message: `Documents are currently at Showroom. They cannot be marked as returned from Excise until they are sent to Excise first. Next valid step: At Excise`
+                });
+            } else if (currentStatus === "At Excise" && newStatus === "Showroom") {
+                setValidationError({
+                    title: "Invalid Transition",
+                    message: `Documents are currently at Excise. You must use 'Returned Back' instead of a regular 'Showroom' status. Next valid step: Returned Back to Showroom`
+                });
+            } else {
+                setValidationError({
+                    title: "Action Not Allowed",
+                    message: `You cannot move documents from '${currentStatus}' directly to '${newStatus}'. Next valid step: ${requiredNext || 'None'}`
+                });
+            }
+            return;
+        }
 
         // Handle Dialog flows based on status selection
         if (newStatus === "At Excise") {
@@ -189,6 +220,26 @@ export const DocStatusDialog = ({ isOpen, onClose, vehicle }: DocStatusDialogPro
                 vehicle={vehicle}
                 onSuccess={onClose}
             />
+
+            {/* Validation Error Popup */}
+            <Dialog open={!!validationError} onOpenChange={(open) => { if (!open) setValidationError(null); }}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <AlertCircle size={22} />
+                            {validationError?.title}
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-700 mt-3 text-base leading-relaxed">
+                            {validationError?.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4">
+                        <Button variant="default" onClick={() => setValidationError(null)} className="w-full sm:w-auto">
+                            Understood
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 };

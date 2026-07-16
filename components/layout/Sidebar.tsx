@@ -4,22 +4,32 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  LayoutDashboard, Database, Settings, PlusCircle, Car, FileText, LogOut,
+  LayoutDashboard, Settings, PlusCircle, Car, FileText, LogOut,
   Users, LucideIcon, BarChart3, Shield, Truck, ChevronLeft, ChevronRight,
   X, UserCircle, History, Wallet, Layers, Receipt, ArrowLeftRight, BookOpen,
-  ShoppingCart, PackagePlus, Landmark, ChevronDown, ChevronUp, Scale
+  ShoppingCart, PackagePlus, Landmark, ChevronDown, ChevronUp, Scale,
+  Globe, MessageSquare, Package, Database, Newspaper
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface MenuItem {
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
   permissionId?: string;
-  specialColor?: string;
-  children?: MenuItem[];
+}
+
+interface NavSection {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  color: string;           // Tailwind text color class for accent
+  bgColor: string;         // Tailwind bg color for header when active
+  permissionId?: string;
+  items: NavItem[];
 }
 
 interface SidebarProps {
@@ -29,56 +39,110 @@ interface SidebarProps {
   setIsMobileOpen: (open: boolean) => void;
 }
 
+// ─── Nav Structure ────────────────────────────────────────────────────────────
+const NAV_SECTIONS: NavSection[] = [
+  {
+    key: "accounts",
+    label: "Accounts",
+    icon: Wallet,
+    color: "text-blue-600",
+    bgColor: "bg-blue-50",
+    items: [
+      { href: "/dashboard/accounts",          label: "Manage Accounts",      icon: Wallet,        permissionId: "accounts" },
+      { href: "/dashboard/account-types",     label: "Account Types",        icon: Layers,        permissionId: "account_types" },
+      { href: "/dashboard/clients",           label: "Manage Clients",       icon: UserCircle,    permissionId: "clients" },
+      { href: "/dashboard/investors",         label: "Manage Investors",     icon: Users,         permissionId: "investors" },
+      { href: "/dashboard/banks",             label: "Manage Banks",         icon: Landmark },
+      { href: "/dashboard/purchase-invoice",  label: "Purchase Invoice",     icon: PackagePlus,   permissionId: "purchase_invoice" },
+      { href: "/dashboard/purchase-invoices", label: "Purchase Invoice List",icon: FileText,      permissionId: "purchase_invoice" },
+      { href: "/dashboard/sale-invoice",      label: "Sale Invoice",         icon: ShoppingCart,  permissionId: "sale_invoice" },
+      { href: "/dashboard/purchase-inventory",label: "Purchase Inventory",   icon: Package,       permissionId: "inventory" },
+      { href: "/dashboard/cash-voucher",      label: "Cash Voucher",         icon: Receipt,       permissionId: "cash_voucher" },
+      { href: "/dashboard/general-voucher",   label: "General Voucher",      icon: ArrowLeftRight,permissionId: "general_voucher" },
+      { href: "/dashboard/general-ledger",    label: "General Ledger",       icon: BookOpen,      permissionId: "general_ledger" },
+    ],
+  },
+  {
+    key: "file-tracking",
+    label: "File Tracking",
+    icon: Car,
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-50",
+    items: [
+      { href: "/dashboard/inventory", label: "File Inventory",    icon: Database,   permissionId: "inventory" },
+      { href: "/dashboard/history",   label: "Vehicle History",   icon: History,    permissionId: "inventory" },
+      { href: "/dashboard/delivery",  label: "Delivery",          icon: Truck,      permissionId: "delivery" },
+    ],
+  },
+  {
+    key: "website",
+    label: "Website",
+    icon: Globe,
+    color: "text-purple-600",
+    bgColor: "bg-purple-50",
+    items: [
+      { href: "/dashboard/website-inventory",  label: "Website Inventory",  icon: Car,           permissionId: "inventory" },
+      { href: "/dashboard/website-inquiries",  label: "Website Inquiries",  icon: MessageSquare, permissionId: "inventory" },
+      { href: "/dashboard/website-sale-requests", label: "Sale Requests",   icon: Newspaper,     permissionId: "inventory" },
+    ],
+  },
+  {
+    key: "reports",
+    label: "Reports",
+    icon: BarChart3,
+    color: "text-rose-600",
+    bgColor: "bg-rose-50",
+    permissionId: "reports",
+    items: [
+      { href: "/dashboard/reports",              label: "Analytics Overview", icon: BarChart3, permissionId: "reports" },
+      { href: "/dashboard/reports/balance-sheet",label: "Balance Sheet",      icon: Scale,     permissionId: "reports" },
+      { href: "/dashboard/general-voucher",      label: "General Voucher",    icon: ArrowLeftRight, permissionId: "general_voucher" },
+      { href: "/dashboard/logs",                 label: "Activity Logs",      icon: FileText,  permissionId: "logs" },
+    ],
+  },
+];
+
+// Always visible top items (outside sections)
+const TOP_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permissionId: "dashboard" },
+  { href: "/dashboard/registry",  label: "New Registration",  icon: PlusCircle, permissionId: "registry" },
+];
+
+// Always visible bottom items
+const BOTTOM_ITEMS: NavItem[] = [
+  { href: "/dashboard/roles",    label: "Roles",          icon: Shield,    permissionId: "roles" },
+  { href: "/dashboard/users",    label: "Users",          icon: Users,     permissionId: "users" },
+  { href: "/dashboard/settings", label: "Configurations", icon: Settings,  permissionId: "settings" },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }: SidebarProps) => {
   const pathname = usePathname();
   const { logout, userData } = useAuth();
-  const [openDropdowns, setOpenDropdowns] = useState<Set<string>>(new Set(["reports"]));
-
-  const menuItems: MenuItem[] = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permissionId: 'dashboard' },
-    { href: '/dashboard/registry', label: 'New Registration', icon: PlusCircle, permissionId: 'registry' },
-    { href: '/dashboard/clients', label: 'Manage Clients', icon: UserCircle, permissionId: 'clients' },
-    { href: '/dashboard/investors', label: 'Manage Investors', icon: Users, permissionId: 'investors' },
-    { href: '/dashboard/banks', label: 'Manage Banks', icon: Landmark },
-    { href: '/dashboard/account-types', label: 'Account Types', icon: Layers, permissionId: 'account_types' },
-    { href: '/dashboard/accounts', label: 'Accounts', icon: Wallet, permissionId: 'accounts' },
-    { href: '/dashboard/cash-voucher', label: 'Cash Voucher', icon: Receipt, permissionId: 'cash_voucher' },
-    { href: '/dashboard/general-voucher', label: 'General Voucher', icon: ArrowLeftRight, permissionId: 'general_voucher' },
-    { href: '/dashboard/general-ledger', label: 'General Ledger', icon: BookOpen, permissionId: 'general_ledger' },
-    { href: '/dashboard/settings', label: 'Configurations', icon: Settings, permissionId: 'settings' },
-    { href: '/dashboard/inventory', label: 'All Inventory', icon: Database, permissionId: 'inventory' },
-    { href: '/dashboard/purchase-inventory', label: 'Purchase Inventory', icon: Car, permissionId: 'inventory' },
-    { href: '/dashboard/purchase-invoice', label: 'New Purchase Invoice', icon: PackagePlus, permissionId: 'purchase_invoice' },
-    { href: '/dashboard/purchase-invoices', label: 'Purchase Invoices', icon: FileText, permissionId: 'purchase_invoice' },
-    { href: '/dashboard/sale-invoice', label: 'Sale Invoice', icon: ShoppingCart, permissionId: 'sale_invoice' },
-    { href: '/dashboard/website-inventory', label: 'Website Inventory', icon: Car, permissionId: 'inventory' },
-    { href: '/dashboard/history', label: 'Vehicle History', icon: History, permissionId: 'inventory' },
-    { href: '/dashboard/delivery', label: 'Delivery', icon: Truck, permissionId: 'delivery' },
-    {
-      href: '/dashboard/reports',
-      label: 'Reports',
-      icon: BarChart3,
-      permissionId: 'reports',
-      children: [
-        { href: '/dashboard/reports', label: 'Reports & Analytics', icon: BarChart3, permissionId: 'reports' },
-        { href: '/dashboard/reports/balance-sheet', label: 'Balance Sheet', icon: Scale, permissionId: 'reports' },
-      ]
-    },
-    { href: '/dashboard/logs', label: 'Activity Logs', icon: FileText, permissionId: 'logs' },
-    { href: '/dashboard/roles', label: 'Roles', icon: Shield, permissionId: 'roles' },
-    { href: '/dashboard/users', label: 'Users', icon: Users, permissionId: 'users' },
-  ];
+  // Default open: the section whose child is currently active
+  const initialOpen = () => {
+    const s = new Set<string>();
+    NAV_SECTIONS.forEach(section => {
+      if (section.items.some(i => pathname === i.href || pathname.startsWith(i.href + "/"))) {
+        s.add(section.key);
+      }
+    });
+    if (s.size === 0) s.add("accounts"); // default open
+    return s;
+  };
+  const [openSections, setOpenSections] = useState<Set<string>>(initialOpen);
 
   const hasPermission = (permissionId?: string) => {
     if (!permissionId) return true;
     if (!userData) return false;
-    if (userData.role === 'admin' || userData.role === 'Super Admin') return true;
-    if (userData.permissions?.includes('ALL')) return true;
+    if (userData.role === "admin" || userData.role === "Super Admin") return true;
+    if (userData.permissions?.includes("ALL")) return true;
     return userData.permissions?.includes(permissionId);
   };
 
-  const toggleDropdown = (key: string) => {
-    setOpenDropdowns(prev => {
+  const toggleSection = (key: string) => {
+    if (isCollapsed) return;
+    setOpenSections(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -86,98 +150,87 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
     });
   };
 
-  const renderMenuItem = (item: MenuItem) => {
+  // ── Single nav link ──────────────────────────────────────────────────────────
+  const NavLink = ({ item, compact = false }: { item: NavItem; compact?: boolean }) => {
     if (!hasPermission(item.permissionId)) return null;
-
-    const isActive = pathname === item.href;
+    const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
     const Icon = item.icon;
-
-    // Item with children = dropdown group
-    if (item.children && item.children.length > 0) {
-      const isOpen = openDropdowns.has(item.label);
-      const anyChildActive = item.children.some(c => pathname === c.href || pathname.startsWith(c.href + '/'));
-      if (!hasPermission(item.permissionId)) return null;
-
-      return (
-        <div key={item.label}>
-          <button
-            onClick={() => { if (!isCollapsed) toggleDropdown(item.label); }}
-            className={cn(
-              "w-full flex items-center px-3 py-2 rounded-md transition-colors group relative text-sm font-medium",
-              anyChildActive
-                ? "bg-slate-100 text-slate-900"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
-              isCollapsed && "justify-center px-2"
-            )}
-            title={isCollapsed ? item.label : undefined}
-          >
-            <Icon size={20} className={cn("shrink-0", anyChildActive && "text-slate-900")} />
-            {!isCollapsed && (
-              <>
-                <span className="ml-3 flex-1 text-left">{item.label}</span>
-                {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </>
-            )}
-            {isCollapsed && (
-              <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50">
-                {item.label}
-              </div>
-            )}
-          </button>
-
-          {/* Sub-items */}
-          {(isOpen || anyChildActive) && !isCollapsed && (
-            <div className="ml-4 mt-0.5 space-y-0.5 border-l-2 border-slate-100 pl-2">
-              {item.children.map(child => {
-                if (!hasPermission(child.permissionId)) return null;
-                const childActive = pathname === child.href;
-                const ChildIcon = child.icon;
-                return (
-                  <Link
-                    key={child.href}
-                    href={child.href}
-                    className={cn(
-                      "flex items-center space-x-2.5 px-2 py-1.5 rounded-md transition-colors text-xs font-medium",
-                      childActive
-                        ? "bg-slate-100 text-slate-900"
-                        : "text-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                    )}
-                  >
-                    <ChildIcon size={14} className="shrink-0" />
-                    <span>{child.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // Regular item
     return (
       <Link
-        key={item.href}
         href={item.href}
+        onClick={() => setIsMobileOpen(false)}
         className={cn(
-          "flex items-center space-x-3 px-3 py-2 rounded-md transition-colors group relative",
-          item.specialColor
-            ? item.specialColor
-            : (isActive ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"),
+          "flex items-center rounded-md transition-all duration-150 group relative",
+          compact
+            ? "gap-2 px-2 py-1.5 text-xs"
+            : "gap-3 px-3 py-2 text-sm font-medium",
+          isActive
+            ? "bg-slate-100 text-slate-900 font-semibold"
+            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800",
           isCollapsed && "justify-center px-2"
         )}
         title={isCollapsed ? item.label : undefined}
       >
-        <Icon size={20} className={cn("shrink-0", isActive && "text-slate-900")} />
-        {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
-
-        {/* Tooltip for collapsed state */}
+        <Icon size={compact ? 14 : 18} className={cn("shrink-0", isActive && "text-slate-900")} />
+        {!isCollapsed && <span className="truncate">{item.label}</span>}
         {isCollapsed && (
-          <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50">
+          <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
             {item.label}
           </div>
         )}
       </Link>
+    );
+  };
+
+  // ── Section ──────────────────────────────────────────────────────────────────
+  const SidebarSection = ({ section }: { section: NavSection }) => {
+    if (!hasPermission(section.permissionId)) return null;
+    const isOpen = openSections.has(section.key);
+    const Icon = section.icon;
+    const anyActive = section.items.some(
+      i => pathname === i.href || pathname.startsWith(i.href + "/")
+    );
+
+    return (
+      <div className="mb-1">
+        {/* Section Header */}
+        <button
+          onClick={() => toggleSection(section.key)}
+          className={cn(
+            "w-full flex items-center rounded-lg px-3 py-2 transition-all duration-150 group relative",
+            anyActive
+              ? `${section.bgColor} ${section.color} font-semibold`
+              : "text-slate-500 hover:bg-slate-50 hover:text-slate-800",
+            isCollapsed && "justify-center px-2"
+          )}
+          title={isCollapsed ? section.label : undefined}
+        >
+          <Icon size={18} className="shrink-0" />
+          {!isCollapsed && (
+            <>
+              <span className="ml-2.5 flex-1 text-left text-sm font-semibold tracking-wide">{section.label}</span>
+              {isOpen
+                ? <ChevronUp size={13} className="shrink-0 opacity-60" />
+                : <ChevronDown size={13} className="shrink-0 opacity-60" />
+              }
+            </>
+          )}
+          {isCollapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 pointer-events-none">
+              {section.label}
+            </div>
+          )}
+        </button>
+
+        {/* Section Items */}
+        {isOpen && !isCollapsed && (
+          <div className={cn("mt-0.5 ml-2 pl-3 border-l-2 space-y-0.5", `border-l-${section.color.split("-")[1]}-100`)}>
+            {section.items.map(item => (
+              <NavLink key={item.href} item={item} compact />
+            ))}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -193,62 +246,74 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
 
       <aside className={cn(
         "fixed left-0 top-0 bottom-0 bg-white border-r border-slate-200 flex flex-col z-50 transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-20" : "w-64",
-        // Mobile behavior: hidden by default, visible when open
+        isCollapsed ? "w-16" : "w-64",
         "transform md:transform-none",
         isMobileOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0"
       )}>
-        <div className="h-16 flex items-center justify-between px-4 border-slate-100 relative">
-          {/* Logo Section */}
+        {/* Logo */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 shrink-0">
           {!isCollapsed ? (
-            <img src="/Vendora side.png" alt="Caruzen" className="h-40 w-50 object-contain" />
+            <img src="/Vendora side.png" alt="Caruzen" className="h-36 w-auto object-contain" />
           ) : (
             <div className="w-full flex justify-center">
               <div className="h-8 w-8 bg-slate-900 rounded flex items-center justify-center text-white font-bold text-sm">V</div>
             </div>
           )}
-
-          {/* Mobile Close Button */}
           <Button variant="ghost" size="icon" className="md:hidden absolute right-2 top-4" onClick={() => setIsMobileOpen(false)}>
             <X size={20} />
           </Button>
         </div>
 
-        {/* Toggle Button (Desktop Only) */}
+        {/* Collapse Toggle (desktop only) */}
         {!isMobileOpen && (
           <Button
             variant="ghost"
             size="sm"
-            className={cn(
-              "absolute -right-3 top-20 h-6 w-6 rounded-full border border-slate-200 bg-white p-0 shadow-sm hidden md:flex items-center justify-center hover:bg-slate-50",
-              "text-slate-400 hover:text-slate-600"
-            )}
+            className="absolute -right-3 top-20 h-6 w-6 rounded-full border border-slate-200 bg-white p-0 shadow-sm hidden md:flex items-center justify-center hover:bg-slate-50 text-slate-400 hover:text-slate-600"
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
-            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            {isCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
           </Button>
         )}
 
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {menuItems.map((item) => renderMenuItem(item))}
+        {/* Nav */}
+        <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-0.5">
+          {/* Dashboard (always on top, outside sections) */}
+          {TOP_ITEMS.map(item => <NavLink key={item.href} item={item} />)}
+
+          {/* Divider */}
+          {!isCollapsed && <div className="mx-1 my-2 border-t border-slate-100" />}
+
+          {/* Four main sections */}
+          {NAV_SECTIONS.map(section => (
+            <SidebarSection key={section.key} section={section} />
+          ))}
+
+          {/* Divider */}
+          {!isCollapsed && <div className="mx-1 my-2 border-t border-slate-100" />}
+
+          {/* Admin/Config items at bottom of nav */}
+          {BOTTOM_ITEMS.map(item => <NavLink key={item.href} item={item} />)}
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
+        {/* Footer */}
+        <div className="px-3 py-3 border-t border-slate-100 shrink-0">
           {!isCollapsed && (
-            <div className="mb-4 px-2 text-xs text-slate-400 truncate">
-              Logged in as: {userData?.role || 'Staff'}
+            <div className="mb-2 px-1 text-xs text-slate-400 truncate">
+              {userData?.name && <span className="font-medium text-slate-600">{userData.name} · </span>}
+              {userData?.role || "Staff"}
             </div>
           )}
           <Button
             variant="ghost"
             className={cn(
-              "w-full text-red-600 hover:text-red-700 hover:bg-red-50",
+              "w-full text-red-600 hover:text-red-700 hover:bg-red-50 text-sm",
               isCollapsed ? "justify-center px-0" : "justify-start"
             )}
             onClick={logout}
             title={isCollapsed ? "Sign Out" : undefined}
           >
-            <LogOut size={20} className={cn("shrink-0", !isCollapsed && "mr-2")} />
+            <LogOut size={18} className={cn("shrink-0", !isCollapsed && "mr-2")} />
             {!isCollapsed && <span>Sign Out</span>}
           </Button>
         </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, FormEvent, useMemo } from "react";
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, limit, getDocs, runTransaction } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -127,6 +127,23 @@ export const CashVoucherManager = () => {
       unsubAccounts();
     };
   }, []);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      // Press 'n' or 'N' to open Create Voucher modal
+      if (e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        if (!isCreateOpen) setIsCreateOpen(true);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCreateOpen]);
 
   // Fetch Next Voucher Number when dialog opens
   useEffect(() => {
@@ -484,48 +501,53 @@ export const CashVoucherManager = () => {
     window.print();
   };
 
-  const filteredVouchers = vouchers.filter(v => {
-    const cashName = (v.cashAccountName || v.accountName || "").toLowerCase();
-    const counterName = (v.counterAccountName || "").toLowerCase();
+  const filteredVouchers = useMemo(() => {
     const term = searchTerm.toLowerCase();
-    const matchesSearch = cashName.includes(term) || counterName.includes(term) ||
-      v.description.toLowerCase().includes(term) ||
-      v.voucherNo.toString().includes(searchTerm);
-    const cashType = v.cashType || v.type;
-    const matchesType = typeFilter === "ALL" || cashType === typeFilter;
-    return matchesSearch && matchesType;
-  });
+    return vouchers.filter(v => {
+      const cashName = (v.cashAccountName || v.accountName || "").toLowerCase();
+      const counterName = (v.counterAccountName || "").toLowerCase();
+      const matchesSearch = cashName.includes(term) || counterName.includes(term) ||
+        v.description.toLowerCase().includes(term) ||
+        v.voucherNo.toString().includes(searchTerm);
+      const cashType = v.cashType || v.type;
+      const matchesType = typeFilter === "ALL" || cashType === typeFilter;
+      return matchesSearch && matchesType;
+    });
+  }, [vouchers, searchTerm, typeFilter]);
 
   // Group filtered vouchers by date
-  const groupedByDate = filteredVouchers.reduce((acc, voucher) => {
-    const date = voucher.date;
-    if (!acc[date]) {
-      acc[date] = {
-        date,
-        vouchersCount: 0,
-        accounts: new Set<string>(),
-        totalDebit: 0,
-        totalCredit: 0
-      };
-    }
-    acc[date].vouchersCount += 1;
-    const displayName = voucher.cashAccountName
-      ? `${voucher.cashAccountName} ↔ ${voucher.counterAccountName || ""}`
-      : voucher.accountName;
-    acc[date].accounts.add(displayName);
-    const cashType = voucher.cashType || voucher.type;
-    if (cashType === "debit") {
-      acc[date].totalDebit += voucher.amount;
-    } else if (cashType === "credit") {
-      acc[date].totalCredit += voucher.amount;
-    }
-    return acc;
-  }, {} as Record<string, { date: string; vouchersCount: number; accounts: Set<string>; totalDebit: number; totalCredit: number }>);
+  const groupedDatesList = useMemo(() => {
+    const groupedByDate = filteredVouchers.reduce((acc, voucher) => {
+      const date = voucher.date;
+      if (!acc[date]) {
+        acc[date] = {
+          date,
+          vouchersCount: 0,
+          accounts: new Set<string>(),
+          totalDebit: 0,
+          totalCredit: 0
+        };
+      }
+      acc[date].vouchersCount += 1;
+      const displayName = voucher.cashAccountName
+        ? `${voucher.cashAccountName} ↔ ${voucher.counterAccountName || ""}`
+        : voucher.accountName;
+      acc[date].accounts.add(displayName);
+      const cashType = voucher.cashType || voucher.type;
+      if (cashType === "debit") {
+        acc[date].totalDebit += voucher.amount;
+      } else if (cashType === "credit") {
+        acc[date].totalCredit += voucher.amount;
+      }
+      return acc;
+    }, {} as Record<string, { date: string; vouchersCount: number; accounts: Set<string>; totalDebit: number; totalCredit: number }>);
+    
+    return Object.values(groupedByDate).sort((a, b) => b.date.localeCompare(a.date));
+  }, [filteredVouchers]);
 
-  // Convert grouped object to array and sort descending by date
-  const groupedDatesList = Object.values(groupedByDate).sort((a, b) => b.date.localeCompare(a.date));
-
-  const dateVouchers = filteredVouchers.filter(v => v.date === selectedDate);
+  const dateVouchers = useMemo(() => {
+    return filteredVouchers.filter(v => v.date === selectedDate);
+  }, [filteredVouchers, selectedDate]);
 
   const PrintableVoucherDoc = ({ voucher }: { voucher: Voucher }) => {
     const cashType = voucher.cashType || voucher.type;
@@ -789,19 +811,30 @@ export const CashVoucherManager = () => {
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-500 block flex items-center gap-1">
-                  Cash Account
-                  <span className="ml-1 text-[10px] font-bold uppercase tracking-wide bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded">Auto · Locked</span>
+                  Cash Account * <span className="text-slate-400 font-normal">(e.g. Cash in Hand)</span>
                 </label>
-                <Select value={formData.cashAccountId} disabled>
-                  <SelectTrigger className="w-full bg-slate-100 cursor-not-allowed opacity-80">
-                    <SelectValue placeholder="Auto-selected" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredAccounts.map(acc => (
-                      <SelectItem key={acc.id} value={acc.id}>{acc.name} ({acc.typeName})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchSelector
+                  items={filteredAccounts}
+                  value={formData.cashAccountId}
+                  onChange={(val) => setFormData(prev => ({ ...prev, cashAccountId: val }))}
+                  placeholder="Choose cash account"
+                  searchPlaceholder="Search cash account..."
+                  getSearchFields={(acc) => [acc.name, acc.typeName]}
+                  itemKey={(acc) => acc.id}
+                  renderTrigger={(selected) =>
+                    selected ? (
+                      <span>{selected.name} <span className="text-slate-400 text-xs ml-1">({selected.typeName})</span></span>
+                    ) : (
+                      <span className="text-slate-400">Choose cash account</span>
+                    )
+                  }
+                  renderItem={(acc) => (
+                    <div className="flex justify-between items-center w-full text-left">
+                      <span className="font-medium text-slate-800">{acc.name}</span>
+                      <span className="text-xs text-slate-400 font-mono">({acc.typeName})</span>
+                    </div>
+                  )}
+                />
               </div>
 
               <div className="space-y-2">
@@ -865,19 +898,6 @@ export const CashVoucherManager = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-500 flex items-center gap-1"><DollarSign size={12} /> Debit Amount (+)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="Cash Inflow"
-                    value={formData.debit}
-                    onChange={e => handleDebitChange(e.target.value)}
-                    disabled={!!formData.credit}
-                    className={formData.credit ? "bg-slate-100 cursor-not-allowed opacity-50" : ""}
-                  />
-                  <p className="text-[9px] text-slate-400">Adds money to account</p>
-                </div>
-                <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-500 flex items-center gap-1"><DollarSign size={12} /> Credit Amount (-)</label>
                   <Input
                     type="number"
@@ -889,6 +909,19 @@ export const CashVoucherManager = () => {
                     className={formData.debit ? "bg-slate-100 cursor-not-allowed opacity-50" : ""}
                   />
                   <p className="text-[9px] text-slate-400">Subtracts money from account</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-500 flex items-center gap-1"><DollarSign size={12} /> Debit Amount (+)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Cash Inflow"
+                    value={formData.debit}
+                    onChange={e => handleDebitChange(e.target.value)}
+                    disabled={!!formData.credit}
+                    className={formData.credit ? "bg-slate-100 cursor-not-allowed opacity-50" : ""}
+                  />
+                  <p className="text-[9px] text-slate-400">Adds money to account</p>
                 </div>
               </div>
 
@@ -1118,19 +1151,6 @@ export const CashVoucherManager = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-500 flex items-center gap-1"><DollarSign size={12} /> Debit Amount (+)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="Cash Inflow"
-                    value={editFormData.debit}
-                    onChange={e => handleEditDebitChange(e.target.value)}
-                    disabled={!!editFormData.credit}
-                    className={editFormData.credit ? "bg-slate-100 cursor-not-allowed opacity-50" : ""}
-                  />
-                  <p className="text-[9px] text-slate-400">Adds money to account</p>
-                </div>
-                <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-500 flex items-center gap-1"><DollarSign size={12} /> Credit Amount (-)</label>
                   <Input
                     type="number"
@@ -1142,6 +1162,19 @@ export const CashVoucherManager = () => {
                     className={editFormData.debit ? "bg-slate-100 cursor-not-allowed opacity-50" : ""}
                   />
                   <p className="text-[9px] text-slate-400">Subtracts money from account</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-500 flex items-center gap-1"><DollarSign size={12} /> Debit Amount (+)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Cash Inflow"
+                    value={editFormData.debit}
+                    onChange={e => handleEditDebitChange(e.target.value)}
+                    disabled={!!editFormData.credit}
+                    className={editFormData.credit ? "bg-slate-100 cursor-not-allowed opacity-50" : ""}
+                  />
+                  <p className="text-[9px] text-slate-400">Adds money to account</p>
                 </div>
               </div>
 

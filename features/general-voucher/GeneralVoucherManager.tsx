@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, FormEvent, useMemo } from "react";
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, limit, getDocs, runTransaction } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -89,6 +89,23 @@ export const GeneralVoucherManager = () => {
       unsubAccounts();
     };
   }, []);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      // Press 'n' or 'N' to open Create Voucher modal
+      if (e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        if (!isCreateOpen) setIsCreateOpen(true);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCreateOpen]);
 
   // Fetch Next Voucher Number when dialog opens
   useEffect(() => {
@@ -294,12 +311,15 @@ export const GeneralVoucherManager = () => {
     window.print();
   };
 
-  const filteredVouchers = vouchers.filter(v => {
-    return v.fromAccountName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.toAccountName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      v.voucherNo.toString().includes(searchTerm);
-  });
+  const filteredVouchers = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return vouchers.filter(v => {
+      return v.fromAccountName.toLowerCase().includes(term) ||
+        v.toAccountName.toLowerCase().includes(term) ||
+        v.description.toLowerCase().includes(term) ||
+        v.voucherNo.toString().includes(term);
+    });
+  }, [vouchers, searchTerm]);
 
   const PrintableVoucherDoc = ({ voucher }: { voucher: GeneralVoucher }) => (
     <div id="print-content" className="bg-white p-8 md:p-12 max-w-4xl mx-auto text-slate-900 font-sans relative border border-slate-300 rounded-lg">

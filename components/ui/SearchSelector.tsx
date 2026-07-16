@@ -21,6 +21,7 @@ interface SearchSelectorProps<T> {
   className?: string;
   dropdownWidthClassName?: string;
   disabled?: boolean;
+  actionNode?: React.ReactNode;
 }
 
 export function SearchSelector<T>({
@@ -37,6 +38,7 @@ export function SearchSelector<T>({
   className,
   dropdownWidthClassName = "w-[400px]",
   disabled = false,
+  actionNode,
 }: SearchSelectorProps<T>) {
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -184,6 +186,11 @@ export function SearchSelector<T>({
             })
           )}
         </div>
+        {actionNode && (
+          <div className="border-t border-slate-100 p-1.5 bg-slate-50/50 rounded-b-xl">
+            {actionNode}
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

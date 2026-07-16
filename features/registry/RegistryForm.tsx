@@ -3,6 +3,7 @@ import { useState, useEffect, FormEvent } from "react";
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { PlusCircle, Loader2, CheckCircle2, Car, Settings2, FileText, User, CreditCard, X } from "lucide-react";
+import { PlusCircle, Loader2, CheckCircle2, Car, Settings2, FileText, User, CreditCard, X, Receipt, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { ClientSelector } from "./ClientSelector";
 
@@ -32,9 +33,15 @@ const useSettings = (collectionName: string) => {
 
 export const RegistryForm = () => {
   const { user } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [formKey, setFormKey] = useState(0);
+
+  // Post-save Purchase modal
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [savedVehicleId, setSavedVehicleId] = useState("");
+  const [savedVehicleName, setSavedVehicleName] = useState("");
 
   // 1. Fetch All Configuration Data
   const brands = useSettings("brands");
@@ -257,7 +264,7 @@ export const RegistryForm = () => {
       });
 
       // 3. Save vehicle with account reference — financial details handled via Purchase Invoice
-      await addDoc(collection(db, "cars"), {
+      const carRef = await addDoc(collection(db, "cars"), {
         ...vehicleData,
         vehicleAccountId: vehicleAccountRef.id,
         vehicleAccountName,
@@ -285,8 +292,16 @@ export const RegistryForm = () => {
       setRegisteredOwnerCnic("");
       setPlatesAvailable(true);
       setPlateUnavailableReason("Not Issued from Excise");
-      setRegistrationReason("For Purchase");
       setVehicleSource("Local");
+
+      // If registered for purchase, show CTA modal
+      if (registrationReason === "For Purchase") {
+        setSavedVehicleId(carRef.id);
+        setSavedVehicleName(`${brandName} ${selectedModelName}`);
+        setShowPurchaseModal(true);
+      }
+
+      setRegistrationReason("For Purchase");
 
 
 
@@ -329,19 +344,74 @@ export const RegistryForm = () => {
   );
 
   return (
-    <Card className="max-w-5xl mx-auto shadow-lg border-slate-200">
-      <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-6">
-        <CardTitle className="text-xl text-slate-900">New Vehicle Entry</CardTitle>
-        <CardDescription>Add a new vehicle to the showroom inventory system.</CardDescription>
-      </CardHeader>
+    <>
+      {/* ── Post-Save Purchase Modal ───────────────────────────────────────────── */}
+      {showPurchaseModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowPurchaseModal(false)}
+          />
 
-      <CardContent className="p-8">
-        {message && (
-          <div className={`mb-8 p-4 rounded-lg flex items-center gap-3 text-sm font-medium animate-in fade-in slide-in-from-top-2 ${message.includes("Error") ? "bg-red-50 text-red-700 border border-red-100" : "bg-green-50 text-green-700 border border-green-100"}`}>
-            {message.includes("Success") && <CheckCircle2 size={18} />}
-            {message}
+          {/* Panel */}
+          <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Green success header */}
+            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 px-6 py-8 text-white text-center">
+              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 size={36} className="text-white" />
+              </div>
+              <h2 className="text-xl font-bold">Vehicle Registered!</h2>
+              <p className="text-emerald-100 text-sm mt-1">{savedVehicleName}</p>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-6 space-y-4">
+              <p className="text-slate-600 text-sm text-center leading-relaxed">
+                This vehicle was registered for <span className="font-semibold text-slate-800">Purchase</span>.
+                Would you like to create a Purchase Invoice now?
+              </p>
+
+              {/* Primary CTA */}
+              <Button
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white gap-2 h-11 text-sm font-semibold"
+                onClick={() => {
+                  setShowPurchaseModal(false);
+                  router.push(`/dashboard/purchase-invoice?vehicleId=${savedVehicleId}`);
+                }}
+              >
+                <Receipt size={16} />
+                Create Purchase Invoice
+                <ArrowRight size={15} className="ml-auto" />
+              </Button>
+
+              {/* Skip */}
+              <Button
+                variant="ghost"
+                className="w-full text-slate-500 hover:text-slate-700 text-sm"
+                onClick={() => setShowPurchaseModal(false)}
+              >
+                Skip for now
+              </Button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
+
+      <Card className="max-w-5xl mx-auto shadow-lg border-slate-200">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-6">
+          <CardTitle className="text-xl text-slate-900">New Vehicle Entry</CardTitle>
+          <CardDescription>Add a new vehicle to the showroom inventory system.</CardDescription>
+        </CardHeader>
+
+        <CardContent className="p-8">
+          {message && (
+            <div className={`mb-8 p-4 rounded-lg flex items-center gap-3 text-sm font-medium animate-in fade-in slide-in-from-top-2 ${message.includes("Error") ? "bg-red-50 text-red-700 border border-red-100" : "bg-green-50 text-green-700 border border-green-100"}`}>
+              {message.includes("Success") && <CheckCircle2 size={18} />}
+              {message}
+            </div>
+          )}
+
 
         {/* Key forces re-render on reset */}
         <form key={formKey} onSubmit={handleSubmit} className="space-y-10">
@@ -701,7 +771,8 @@ export const RegistryForm = () => {
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card >
+        </CardContent>
+      </Card>
+    </>
   );
 };

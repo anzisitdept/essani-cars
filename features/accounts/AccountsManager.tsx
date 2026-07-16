@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import {
   Search, Pencil, Trash2, Wallet, X, CheckCircle2, AlertTriangle,
-  Store, UserSquare, Phone, CreditCard, FileImage, Loader2
+  Store, UserSquare, Phone, CreditCard, FileImage, Loader2, MapPin
 } from "lucide-react";
 import Link from "next/link";
 
@@ -34,12 +34,14 @@ interface Account {
   phoneNumber?: string;
   cnic?: string;
   cnicPicture?: string;
+  address?: string;
   createdAt: any;
 }
 
 interface AccountType {
   id: string;
   name: string;
+  requireNumberInfo?: boolean;
 }
 
 export const AccountsManager = () => {
@@ -64,7 +66,8 @@ export const AccountsManager = () => {
     fatherName: "",
     phoneNumber: "",
     cnic: "",
-    cnicPicture: ""
+    cnicPicture: "",
+    address: ""
   });
   const [cnicFile, setCnicFile] = useState<File | null>(null);
 
@@ -87,7 +90,7 @@ export const AccountsManager = () => {
 
     const qTypes = query(collection(db, "account-types"), orderBy("name"));
     const unsubTypes = onSnapshot(qTypes, (snapshot) => {
-      setAccountTypes(snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name } as AccountType)));
+      setAccountTypes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AccountType)));
       typesReady = true;
       checkReady();
     });
@@ -109,7 +112,8 @@ export const AccountsManager = () => {
       fatherName: "",
       phoneNumber: "",
       cnic: "",
-      cnicPicture: ""
+      cnicPicture: "",
+      address: ""
     });
     setCnicFile(null);
     setIsEditing(null);
@@ -128,7 +132,8 @@ export const AccountsManager = () => {
       fatherName: account.fatherName || "",
       phoneNumber: account.phoneNumber || "",
       cnic: account.cnic || "",
-      cnicPicture: account.cnicPicture || ""
+      cnicPicture: account.cnicPicture || "",
+      address: account.address || ""
     });
     setCnicFile(null);
     setIsEditing(account.id);
@@ -177,9 +182,10 @@ export const AccountsManager = () => {
     try {
       const selectedType = accountTypes.find(t => t.id === formData.typeId);
       const typeName = selectedType ? selectedType.name : "Unknown";
+      const requireNumberInfo = selectedType?.requireNumberInfo ?? false;
 
-      if (typeName.toLowerCase() !== "bank" && !formData.phoneNumber.trim()) {
-        setMessage("Error: Phone number is required for this account type");
+      if (requireNumberInfo && !formData.phoneNumber.trim()) {
+        setMessage("Error: Phone number is required when number information is enabled");
         setLoading(false);
         return;
       }
@@ -213,11 +219,12 @@ export const AccountsManager = () => {
         typeName: typeName,
         balance: finalBalance,
         description: formData.description.trim(),
-        shopName: formData.shopName.trim(),
-        fatherName: formData.fatherName.trim(),
-        phoneNumber: formData.phoneNumber.trim(),
-        cnic: formData.cnic.trim(),
-        cnicPicture: cnicPicUrl,
+        shopName: requireNumberInfo ? formData.shopName.trim() : "",
+        fatherName: requireNumberInfo ? formData.fatherName.trim() : "",
+        phoneNumber: requireNumberInfo ? formData.phoneNumber.trim() : "",
+        cnic: requireNumberInfo ? formData.cnic.trim() : "",
+        cnicPicture: requireNumberInfo ? cnicPicUrl : "",
+        address: requireNumberInfo ? formData.address.trim() : "",
         updatedBy: user.uid,
         updatedAt: serverTimestamp()
       };
@@ -309,9 +316,8 @@ export const AccountsManager = () => {
     return matchesSearch && matchesType;
   });
 
-  const selectedTypeObj = accountTypes.find(t => t.id === formData.typeId);
-  const isBankSelected = selectedTypeObj?.name.toLowerCase() === "bank";
-  const showExtraFields = formData.typeId && !isBankSelected;
+  const selectedAccountType = accountTypes.find(t => t.id === formData.typeId);
+  const showExtraFields = selectedAccountType?.requireNumberInfo ?? false;
 
   // --- Loading skeleton ---
   if (dataLoading) {
@@ -387,6 +393,15 @@ export const AccountsManager = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {formData.typeId && (
+                <p className="text-[11px] mt-1.5 flex items-center gap-1">
+                  {showExtraFields ? (
+                    <span className="text-blue-600 font-medium">ℹ️ This account type requires number information (Phone, CNIC, etc.)</span>
+                  ) : (
+                    <span className="text-slate-400">No extra number info required for this type.</span>
+                  )}
+                </p>
+              )}
             </div>
 
             {showExtraFields && (
@@ -440,6 +455,13 @@ export const AccountsManager = () => {
                       <CheckCircle2 size={12} /> {cnicFile ? "New image selected" : "Image previously uploaded"}
                     </div>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                    <MapPin size={12} /> Address
+                  </label>
+                  <Input value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="Full Address" />
                 </div>
               </div>
             )}

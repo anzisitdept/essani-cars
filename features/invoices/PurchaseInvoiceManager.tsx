@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import {
   collection, onSnapshot, query, orderBy, serverTimestamp,
@@ -23,6 +24,8 @@ import { ClientSelector } from "@/features/registry/ClientSelector";
 
 export const PurchaseInvoiceManager = () => {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const preselectedVehicleId = searchParams.get("vehicleId") || "";
 
   // Data
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -58,8 +61,15 @@ export const PurchaseInvoiceManager = () => {
     const q = query(collection(db, "cars"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       const all: any[] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setVehicles(all.filter(v => !v.purchasePrice || v.purchasePrice <= 0));
+      const eligible = all.filter(v => (!v.purchasePrice || v.purchasePrice <= 0) && v.registrationReason === "For Purchase");
+      setVehicles(eligible);
       setPurchaseInvoices(all.filter(v => v.purchasePrice && v.purchasePrice > 0));
+
+      // Auto-select vehicle if vehicleId is in URL
+      if (preselectedVehicleId) {
+        const target = all.find(v => v.id === preselectedVehicleId);
+        if (target) setSelectedVehicleId(preselectedVehicleId);
+      }
     });
     return () => unsub();
   }, []);

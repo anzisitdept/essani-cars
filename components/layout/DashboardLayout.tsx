@@ -8,6 +8,8 @@ import { LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+import { GlobalSearch } from "../shared/GlobalSearch";
+
 export const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const { userData, logout } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -41,7 +43,10 @@ export const DashboardLayout = ({ children }: { children: ReactNode }) => {
             <h2 className="text-lg font-semibold text-slate-800">Caruzen Tracking</h2>
           </div>
 
-          {/* User Profile Section - Hover for Logout */}
+          <div className="flex items-center gap-4">
+            <GlobalSearch />
+
+            {/* User Profile Section - Hover for Logout */}
           <div className="relative group">
             <div className="flex items-center gap-3 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
               <div className="text-right hidden md:block">
@@ -74,6 +79,7 @@ export const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 </button>
               </div>
             </div>
+          </div>
           </div>
         </header>
 
