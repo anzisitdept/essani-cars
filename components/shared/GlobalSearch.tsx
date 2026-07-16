@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -308,7 +308,7 @@ export function GlobalSearch() {
 
               {/* Render results grouped */}
               {(() => {
-                const rendered: JSX.Element[] = [];
+                const rendered: React.ReactNode[] = [];
                 let flatIdx = 0;
                 let lastType = "";
                 flatGrouped.forEach((result, idx) => {

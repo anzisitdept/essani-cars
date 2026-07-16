@@ -20,7 +20,7 @@ export const FinanceReports = () => {
       try {
         const q = query(collection(db, "accounts"));
         const snapshot = await getDocs(q);
-        setAccounts(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        setAccounts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
       } catch (error) {
         console.error("Failed to fetch finance data", error);
       } finally {

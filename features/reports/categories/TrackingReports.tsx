@@ -20,7 +20,7 @@ export const TrackingReports = () => {
       try {
         const q = query(collection(db, "cars"));
         const snapshot = await getDocs(q);
-        setCars(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        setCars(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
       } catch (error) {
         console.error("Failed to fetch tracking data", error);
       } finally {

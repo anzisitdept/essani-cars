@@ -20,7 +20,7 @@ export const ClientsReports = () => {
       try {
         const q = query(collection(db, "accounts"));
         const snapshot = await getDocs(q);
-        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
         // Filter to only clients/customers and suppliers
         setClients(data.filter(a => ["Client", "Customer", "Supplier", "Vendor", "Investor"].includes(a.typeName || "")));
       } catch (error) {

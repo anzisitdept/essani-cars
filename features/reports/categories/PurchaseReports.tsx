@@ -20,7 +20,7 @@ export const PurchaseReports = () => {
       try {
         const q = query(collection(db, "invoices"));
         const snapshot = await getDocs(q);
-        const allInvoices = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        const allInvoices = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
         setInvoices(allInvoices.filter(inv => inv.type === "PURCHASE"));
       } catch (error) {
         console.error("Failed to fetch purchase invoices", error);
