@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   collection, onSnapshot, query, orderBy, addDoc, updateDoc,
-  doc, serverTimestamp, getDocs, where
+  doc, serverTimestamp, getDocs, where, arrayUnion
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Search, CarFront, X, Sparkles, SlidersHorizontal, Globe, LayoutGrid,
-  PlusCircle, Send, CheckCircle2, Loader2, Inbox, Car
+  PlusCircle, Send, CheckCircle2, Loader2, Inbox, Car, Image as ImageIcon, Upload, Trash2
 } from "lucide-react";
 import { WebsiteVehicleCard } from "./WebsiteVehicleCard";
 import { WebsiteVehicleDetailModal } from "./WebsiteVehicleDetailModal";
@@ -36,6 +36,66 @@ export const WebsiteInventoryManager = () => {
   const [draftVehicles, setDraftVehicles] = useState<any[]>([]);
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [uploadingDraftId, setUploadingDraftId] = useState<string | null>(null);
+  const [viewingDraftVehicle, setViewingDraftVehicle] = useState<any | null>(null);
+
+  const handleDeleteDraftImage = async (vehicleId: string, imageUrl: string) => {
+    if (!confirm("Are you sure you want to delete this image?")) return;
+    try {
+      const vehicle = draftVehicles.find(v => v.id === vehicleId);
+      if (!vehicle) return;
+      const newAssets = vehicle.assets.filter((url: string) => url !== imageUrl);
+      await updateDoc(doc(db, "cars", vehicleId), {
+        assets: newAssets
+      });
+      setViewingDraftVehicle({ ...vehicle, assets: newAssets });
+    } catch (error) {
+      console.error("Failed to delete image:", error);
+      alert("Failed to delete image.");
+    }
+  };
+
+  const handleDraftImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, vehicleId: string) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingDraftId(vehicleId);
+
+    try {
+      const newAssets: string[] = [];
+      const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || "";
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append("image", file);
+
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            newAssets.push(data.data.url);
+          }
+        }
+      }
+
+      if (newAssets.length > 0) {
+        await updateDoc(doc(db, "cars", vehicleId), {
+          assets: arrayUnion(...newAssets)
+        });
+      }
+    } catch (error) {
+      console.error("Failed to upload draft images:", error);
+      alert("An error occurred while uploading images.");
+    } finally {
+      setUploadingDraftId(null);
+      e.target.value = "";
+    }
+  };
 
   // Publish dialog state
   const [publishingVehicle, setPublishingVehicle] = useState<any | null>(null);
@@ -431,9 +491,18 @@ export const WebsiteInventoryManager = () => {
                   <div key={vehicle.id}
                     className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:border-amber-200 hover:shadow-sm transition-all">
                     <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">
-                        <Car size={18} />
-                      </div>
+                      {vehicle.assets && vehicle.assets.length > 0 ? (
+                        <div 
+                          className="h-10 w-10 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => setViewingDraftVehicle(vehicle)}
+                        >
+                          <img src={vehicle.assets[0]} alt="Vehicle" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0">
+                          <Car size={18} />
+                        </div>
+                      )}
                       <div>
                         <h4 className="font-semibold text-slate-900">
                           {vehicle.brandName} {vehicle.model}
@@ -451,13 +520,33 @@ export const WebsiteInventoryManager = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-200 bg-amber-50">
+                    <div className="flex gap-2 shrink-0 items-center">
+                      <div className="relative">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                          onChange={(e) => handleDraftImageUpload(e, vehicle.id)}
+                          disabled={uploadingDraftId === vehicle.id}
+                          title="Upload images"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs gap-1.5 bg-white border-slate-200 text-slate-700 hover:bg-slate-50 relative z-0 h-8"
+                          disabled={uploadingDraftId === vehicle.id}
+                        >
+                          {uploadingDraftId === vehicle.id ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                          Upload Image
+                        </Button>
+                      </div>
+                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-200 bg-amber-50 h-8 flex items-center">
                         Draft
                       </Badge>
                       <Button
                         size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5"
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5 h-8"
                         onClick={() => openPublishDialog(vehicle)}
                       >
                         <Send size={13} />
@@ -726,6 +815,41 @@ export const WebsiteInventoryManager = () => {
             >
               {isPublishing ? <><Loader2 size={14} className="animate-spin" /> Publishing...</> : <><Send size={14} /> Publish Now</>}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Draft Images Viewer Modal */}
+      <Dialog open={!!viewingDraftVehicle} onOpenChange={() => setViewingDraftVehicle(null)}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Draft Images - {viewingDraftVehicle?.brandName} {viewingDraftVehicle?.model}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 py-4 max-h-[60vh] overflow-y-auto">
+            {viewingDraftVehicle?.assets?.map((url: string, index: number) => (
+              <div key={index} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square">
+                <img src={url} alt={`Draft Image ${index + 1}`} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-8 w-8 p-0 rounded-full"
+                    onClick={() => handleDeleteDraftImage(viewingDraftVehicle.id, url)}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {(!viewingDraftVehicle?.assets || viewingDraftVehicle.assets.length === 0) && (
+              <div className="col-span-full py-8 text-center text-slate-400">
+                <ImageIcon size={32} className="mx-auto mb-2 opacity-50" />
+                <p>No images uploaded yet.</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingDraftVehicle(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -59,7 +59,6 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/dashboard/purchase-inventory",label: "Purchase Inventory",   icon: Package,       permissionId: "inventory" },
       { href: "/dashboard/cash-voucher",      label: "Cash Voucher",         icon: Receipt,       permissionId: "cash_voucher" },
       { href: "/dashboard/general-voucher",   label: "General Voucher",      icon: ArrowLeftRight,permissionId: "general_voucher" },
-      { href: "/dashboard/general-ledger",    label: "General Ledger",       icon: BookOpen,      permissionId: "general_ledger" },
     ],
   },
   {
@@ -96,7 +95,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/dashboard/reports",              label: "Analytics Overview", icon: BarChart3, permissionId: "reports" },
       { href: "/dashboard/reports/balance-sheet",label: "Balance Sheet",      icon: Scale,     permissionId: "reports" },
-      { href: "/dashboard/general-voucher",      label: "General Voucher",    icon: ArrowLeftRight, permissionId: "general_voucher" },
+      { href: "/dashboard/general-ledger",       label: "General Ledger",     icon: BookOpen,  permissionId: "general_ledger" },
       { href: "/dashboard/logs",                 label: "Activity Logs",      icon: FileText,  permissionId: "logs" },
     ],
   },

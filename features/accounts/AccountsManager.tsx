@@ -230,7 +230,8 @@ export const AccountsManager = () => {
       };
 
       if (isEditing) {
-        await updateDoc(doc(db, "accounts", isEditing), payload);
+        const { balance, ...updatePayload } = payload;
+        await updateDoc(doc(db, "accounts", isEditing), updatePayload);
 
         await addDoc(collection(db, "logs"), {
           action: `Updated account: ${formData.name}`,
@@ -479,10 +480,12 @@ export const AccountsManager = () => {
                   onChange={e => setFormData({ ...formData, balance: e.target.value })}
                   placeholder="0.00"
                   className="flex-1"
+                  disabled={!!isEditing}
                 />
                 <Select
                   value={formData.balanceType}
                   onValueChange={(val) => setFormData(prev => ({ ...prev, balanceType: val }))}
+                  disabled={!!isEditing}
                 >
                   <SelectTrigger className="w-[120px] bg-white">
                     <SelectValue placeholder="Type" />
@@ -493,6 +496,11 @@ export const AccountsManager = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {!!isEditing && (
+                <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
+                  <AlertTriangle size={12} /> Balance cannot be edited. Please use Vouchers to adjust the balance.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
