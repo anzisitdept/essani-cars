@@ -24,6 +24,8 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
     const [method, setMethod] = useState<string>("hand");
     const [details, setDetails] = useState<string>("");
     const [newRegNo, setNewRegNo] = useState<string>("");
+    const [newPlatesIssued, setNewPlatesIssued] = useState<boolean>(false);
+    const [newPlateStatus, setNewPlateStatus] = useState<string>("Showroom");
 
     const handleConfirm = async () => {
         if (!user || !vehicle) return;
@@ -38,24 +40,41 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
                 fileStatus: newStatus,
                 returnedToShowroomMethod: methodLabel,
                 returnedToShowroomDetails: details,
+                newPlatesIssued: newPlatesIssued,
                 updatedAt: serverTimestamp()
             };
 
             const updatedRegNo = newRegNo.trim().toUpperCase();
             if (updatedRegNo) {
-                if (vehicle.registrationNumber) {
+                updateData.newRegistrationNumber = updatedRegNo;
+                if (vehicle.registrationNumber && vehicle.registrationNumber !== updatedRegNo) {
                     updateData.oldRegistrationNumber = vehicle.registrationNumber;
                 }
                 updateData.registrationNumber = updatedRegNo;
             }
 
+            if (newPlatesIssued) {
+                updateData.newPlateStatus = newPlateStatus;
+                if (vehicle.plateStatus) {
+                    updateData.oldPlateStatus = vehicle.plateStatus;
+                }
+                // If plates location is Showroom, ensure platesAvailable is true
+                if (newPlateStatus === "Showroom") {
+                    updateData.platesAvailable = true;
+                }
+            }
+
             await updateDoc(doc(db, "cars", vehicle.id), updateData);
+
+            const detailsStr = `Returned via ${methodLabel}. Details: ${details}` +
+                (updatedRegNo ? `. New Reg No: ${updatedRegNo}` : "") +
+                (newPlatesIssued ? `. New Plates Issued: Yes (Status: ${newPlateStatus})` : "");
 
             // Log the action
             await addDoc(collection(db, "logs"), {
                 action: `Updated Doc Status: ${newStatus}`,
                 vehicleId: vehicle.id,
-                details: `Returned via ${methodLabel}. Details: ${details}${updatedRegNo ? `. New Reg No: ${updatedRegNo}` : ""}`,
+                details: detailsStr,
                 performedBy: user.uid,
                 timestamp: serverTimestamp(),
                 type: "STATUS_UPDATE"
@@ -65,13 +84,15 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
             await addToHistory(
                 vehicle.id,
                 "Document Returned to Showroom",
-                `Returned via ${methodLabel}${updatedRegNo ? `. New Reg No: ${updatedRegNo}` : ""}`,
+                detailsStr,
                 user.uid,
                 {
                     type: "FILE",
                     status: newStatus,
                     method: methodLabel,
                     details: details,
+                    newPlatesIssued: newPlatesIssued,
+                    ...(newPlatesIssued && { newPlateStatus: newPlateStatus }),
                     ...(updatedRegNo && {
                         newRegistrationNumber: updatedRegNo,
                         oldRegistrationNumber: vehicle.registrationNumber || ""
@@ -101,7 +122,7 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-4 space-y-6">
+                <div className="py-4 space-y-5">
                     <div className="space-y-3">
                         <Label className="text-base font-semibold">Delivery Method</Label>
                         <RadioGroup value={method} onValueChange={setMethod} className="grid grid-cols-2 gap-4">
@@ -139,14 +160,61 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
                         />
                     </div>
 
-                    <div className="space-y-3">
+                    {/* New Number Plates Issued Toggle */}
+                    <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <Label htmlFor="newPlatesIssued" className="font-bold text-sm text-purple-900 cursor-pointer">
+                                    New number plates issue?
+                                </Label>
+                                <p className="text-[11px] text-purple-700">Has Excise issued new number plates for this vehicle?</p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    id="newPlatesIssued"
+                                    className="sr-only peer"
+                                    checked={newPlatesIssued}
+                                    onChange={(e) => setNewPlatesIssued(e.target.checked)}
+                                />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                            </label>
+                        </div>
+
+                        {newPlatesIssued && (
+                            <div className="pt-2 border-t border-purple-200/60 space-y-2">
+                                <Label className="text-xs font-semibold text-purple-900">Current Location / Status of New Plates</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                        { id: "Showroom", label: "Showroom" },
+                                        { id: "At Excise", label: "At Excise" },
+                                        { id: "Delivered to Customer", label: "Delivered" }
+                                    ].map((opt) => (
+                                        <button
+                                            key={opt.id}
+                                            type="button"
+                                            onClick={() => setNewPlateStatus(opt.id)}
+                                            className={`px-2 py-1.5 text-xs font-semibold rounded border transition-colors ${newPlateStatus === opt.id
+                                                    ? "bg-purple-600 text-white border-purple-600"
+                                                    : "bg-white text-purple-800 border-purple-200 hover:bg-purple-100"
+                                                }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
                         <Label htmlFor="details" className="text-base font-semibold">Additional Details</Label>
                         <Textarea
                             id="details"
                             placeholder="Enter courier tracking number, person name, or other relevant details..."
                             value={details}
                             onChange={(e) => setDetails(e.target.value)}
-                            className="min-h-[100px]"
+                            className="min-h-[80px]"
                         />
                     </div>
                 </div>

@@ -87,16 +87,18 @@ export const TrackingReports = () => {
       }
 
       case "plates-status": {
-        const pendingPlates = cars.filter(c => c.plateStatus && c.plateStatus !== "Plates Delivered to Customer");
+        const pendingPlates = cars.filter(c => c.plateStatus || c.newPlatesIssued);
         return (
           <ReportTable
             title="Number Plates Status Report"
-            description="Tracking number plates from printing to customer delivery."
+            description="Tracking number plates (both original and newly issued Excise plates) to customer delivery."
             data={pendingPlates}
             columns={[
               { header: "Vehicle", accessorKey: "brandName", cell: (item) => `${item.brandName} ${item.model}` },
-              { header: "Registration #", accessorKey: "registrationNumber", cell: (item) => item.registrationNumber || "Pending" },
-              { header: "Plate Status", accessorKey: "plateStatus" },
+              { header: "Registration #", accessorKey: "registrationNumber", cell: (item) => item.newRegistrationNumber || item.registrationNumber || "Pending" },
+              { header: "New Plates Issued?", accessorKey: "newPlatesIssued", cell: (item) => item.newPlatesIssued ? "Yes (Excise)" : "No" },
+              { header: "Active Plate Status", accessorKey: "plateStatus", cell: (item) => item.newPlatesIssued ? (item.newPlateStatus || item.plateStatus) : item.plateStatus },
+              { header: "Original Plate Status", accessorKey: "oldPlateStatus", cell: (item) => item.oldPlateStatus || (item.newPlatesIssued ? item.plateStatus : "N/A") },
               { header: "Customer Name", accessorKey: "ownerName", cell: (item) => item.ownerName || "Showroom" },
             ]}
           />

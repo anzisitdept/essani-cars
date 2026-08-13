@@ -20,10 +20,12 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
 
     if (!vehicle) return null;
 
-    const currentStatus = vehicle.plateStatus || "Never Applied";
+    const hasNewPlates = Boolean(vehicle.newPlatesIssued);
+    const activePlateStatus = hasNewPlates ? (vehicle.newPlateStatus || vehicle.plateStatus || "Showroom") : (vehicle.plateStatus || "Never Applied");
+    const currentStatus = activePlateStatus;
     const isDelivered = currentStatus.toLowerCase().includes("delivered");
 
-    // Initialize availablity based on status
+    // Initialize availability based on status
     const [isAvailable, setIsAvailable] = useState(() => {
         if (vehicle.platesAvailable !== undefined) return vehicle.platesAvailable;
         // Fallback for legacy
@@ -36,18 +38,24 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
         setLoading(true);
 
         try {
-            // Update vehicle plate status
-            await updateDoc(doc(db, "cars", vehicle.id), {
+            const updatePayload: any = {
                 plateStatus: newStatus,
                 platesAvailable: available,
                 updatedAt: serverTimestamp()
-            });
+            };
+
+            if (hasNewPlates) {
+                updatePayload.newPlateStatus = newStatus;
+            }
+
+            // Update vehicle plate status
+            await updateDoc(doc(db, "cars", vehicle.id), updatePayload);
 
             // Log the action
             await addDoc(collection(db, "logs"), {
                 action: `Updated Plate Status: ${newStatus}`,
                 vehicleId: vehicle.id,
-                details: `Changed from ${currentStatus} to ${newStatus} (Available: ${available})`,
+                details: `Changed from ${currentStatus} to ${newStatus} (Available: ${available}${hasNewPlates ? ", New Plates Tracked" : ""})`,
                 performedBy: user.uid,
                 timestamp: serverTimestamp(),
                 type: "STATUS_UPDATE"
@@ -57,9 +65,9 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
             await addToHistory(
                 vehicle.id,
                 "Plate Status Update",
-                `Changed status from ${currentStatus} to ${newStatus}`,
+                `Changed status from ${currentStatus} to ${newStatus}${hasNewPlates ? " (New Plates)" : ""}`,
                 user.uid,
-                { type: "PLATE", status: newStatus, available }
+                { type: "PLATE", status: newStatus, available, isNewPlates: hasNewPlates }
             );
 
             onClose();
@@ -69,8 +77,6 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
             setLoading(false);
         }
     };
-
-
 
     const unavailableOptions = [
         {
@@ -103,8 +109,23 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
                 </DialogHeader>
 
                 <div className="py-4 space-y-4">
+                    {hasNewPlates && (
+                        <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs space-y-1 text-purple-900">
+                            <div className="flex items-center justify-between font-bold">
+                                <span>✨ New Number Plates Issued by Excise</span>
+                                <Badge className="bg-purple-600 text-white text-[10px]">NEW PLATES</Badge>
+                            </div>
+                            <p>Reg No: <span className="font-mono font-bold">{vehicle.newRegistrationNumber || vehicle.registrationNumber}</span></p>
+                            {vehicle.oldPlateStatus && (
+                                <p className="text-purple-700">Original Plate Status: <span className="font-semibold">{vehicle.oldPlateStatus}</span></p>
+                            )}
+                        </div>
+                    )}
+
                     <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                        <span className="text-sm font-medium text-slate-500">Current Status:</span>
+                        <span className="text-sm font-medium text-slate-500">
+                            {hasNewPlates ? "New Plate Status:" : "Current Status:"}
+                        </span>
                         <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-white">
                             {currentStatus}
                         </Badge>

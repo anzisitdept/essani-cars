@@ -402,6 +402,14 @@ export const StatusTable = () => {
 
                   {/* Plate Status */}
                   <TableCell className="align-top">
+                    {car.newPlatesIssued && (
+                      <div className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 mb-1.5 flex items-center justify-between">
+                        <span>New Excise Plates</span>
+                        <span className="font-mono bg-purple-600 text-white px-1.5 py-0.2 rounded text-[9px]">
+                          {car.newPlateStatus || car.plateStatus || "SHOWROOM"}
+                        </span>
+                      </div>
+                    )}
                     {car.platesApplied === false ? (
                       <div className="h-8 flex items-center justify-start gap-2 px-3 text-xs text-slate-400 border border-slate-100 rounded-md bg-slate-50 cursor-not-allowed">
                         <Ban size={12} /> Not Applied

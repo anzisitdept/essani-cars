@@ -194,6 +194,11 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                         {vehicle.registrationNumber}
                                     </span>
                                 )}
+                                {vehicle.newPlatesIssued && (
+                                    <Badge className="bg-purple-600 text-white text-[9px] font-bold px-1.5 py-0.5">
+                                        NEW PLATES
+                                    </Badge>
+                                )}
                                 {vehicle.oldRegistrationNumber && (
                                     <span className="text-[12px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded ml-1" title="Old Registration Number">
                                         Old: {vehicle.oldRegistrationNumber}
@@ -323,7 +328,7 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                         )}
                     </div>
 
-                    {/* Plate Status */}
+                    {/* Original / Main Plate Status */}
                     <div className="bg-slate-50 p-2 rounded border border-slate-100 space-y-1.5">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -334,7 +339,9 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                         ? "text-slate-400"
                                         : "text-purple-500"
                                 } />
-                                <span className="text-xs text-slate-500 uppercase font-bold tracking-wider">Plates</span>
+                                <span className="text-xs text-slate-500 uppercase font-bold tracking-wider">
+                                    {vehicle.newPlatesIssued ? "Original Plates" : "Plates"}
+                                </span>
                             </div>
                             <div className="flex items-center gap-1">
                                 <span className={cn(
@@ -350,7 +357,7 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                         : (vehicle.plateStatus || "NEVER APPLIED").toUpperCase()
                                     }
                                 </span>
-                                {vehicle.plateStatus !== 'Never Applied' &&
+                                {!vehicle.newPlatesIssued && vehicle.plateStatus !== 'Never Applied' &&
                                     vehicle.plateStatus !== 'Not Issued from Excise' &&
                                     vehicle.plateStatus !== 'At Party\'s Hand' && (
                                         <button
@@ -386,6 +393,41 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                             </div>
                         )}
                     </div>
+
+                    {/* Separate New Excise Number Plates Block */}
+                    {vehicle.newPlatesIssued && (
+                        <div className="bg-purple-50/70 p-2 rounded border border-purple-200 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <CreditCard size={14} className="text-purple-700" />
+                                    <span className="text-[11px] text-purple-900 font-bold tracking-tight">
+                                        New Excise Number Plates
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-purple-600 text-white shadow-xs">
+                                        {(vehicle.newPlateStatus || "SHOWROOM").toUpperCase()}
+                                    </span>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowPlateDialog(true);
+                                        }}
+                                        className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-full transition-colors z-20 relative"
+                                        title="Update New Plate Status"
+                                    >
+                                        <Settings2 size={12} />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between pl-5 text-[9px] text-purple-800 font-medium">
+                                <span>Reg #: <strong className="font-mono">{vehicle.newRegistrationNumber || vehicle.registrationNumber || "Issued"}</strong></span>
+                                <span className="bg-purple-100 text-purple-900 px-1.5 py-0.5 rounded border border-purple-200">
+                                    Excise Issued
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* --- 4. Identity Block (Terminal Style) --- */}
@@ -436,6 +478,22 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                 <span className="text-slate-500">OLD REG. NO:</span>
                                 <span className="text-slate-900 font-medium truncate max-w-[120px]" title={vehicle.oldRegistrationNumber}>
                                     {vehicle.oldRegistrationNumber}
+                                </span>
+                            </div>
+                        )}
+                        {vehicle.oldPlateStatus && (
+                            <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
+                                <span className="text-slate-500">OLD PLATE STATUS:</span>
+                                <span className="text-slate-700 font-medium truncate max-w-[120px]" title={vehicle.oldPlateStatus}>
+                                    {vehicle.oldPlateStatus}
+                                </span>
+                            </div>
+                        )}
+                        {vehicle.newPlateStatus && (
+                            <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
+                                <span className="text-purple-600 font-semibold">NEW PLATE STATUS:</span>
+                                <span className="text-purple-700 font-bold truncate max-w-[120px]" title={vehicle.newPlateStatus}>
+                                    {vehicle.newPlateStatus}
                                 </span>
                             </div>
                         )}

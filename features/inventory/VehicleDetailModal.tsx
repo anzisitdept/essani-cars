@@ -146,7 +146,13 @@ export const VehicleDetailModal = ({ isOpen, onClose, vehicle }: VehicleDetailMo
             <div className="space-y-1">
                 <DetailRow label="File Status" value={vehicle.fileStatus} />
                 <DetailRow label="Plate Status" value={vehicle.plateStatus} />
+                {vehicle.newPlatesIssued !== undefined && (
+                    <DetailRow label="New Plates Issued" value={vehicle.newPlatesIssued ? "Yes (Issued by Excise)" : "No"} />
+                )}
+                {vehicle.newRegistrationNumber && <DetailRow label="New Registration No." value={vehicle.newRegistrationNumber} />}
+                {vehicle.newPlateStatus && <DetailRow label="New Plate Status" value={vehicle.newPlateStatus} />}
                 {vehicle.oldRegistrationNumber && <DetailRow label="Old Registration No." value={vehicle.oldRegistrationNumber} />}
+                {vehicle.oldPlateStatus && <DetailRow label="Old Plate Status" value={vehicle.oldPlateStatus} />}
                 <DetailRow label="CPLC Counter" value={vehicle.cplcCounter} />
                 <DetailRow label="Registered Year" value={vehicle.registrationYear} />
             </div>
