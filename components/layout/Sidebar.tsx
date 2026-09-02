@@ -8,7 +8,7 @@ import {
   Users, LucideIcon, BarChart3, Shield, Truck, ChevronLeft, ChevronRight,
   X, UserCircle, History, Wallet, Layers, Receipt, ArrowLeftRight, BookOpen,
   ShoppingCart, PackagePlus, Landmark, ChevronDown, ChevronUp, Scale,
-  Globe, MessageSquare, Package, Database, Newspaper
+  Globe, MessageSquare, Package, Database, Newspaper, TrendingUp
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -80,6 +80,7 @@ const NAV_SECTIONS: NavSection[] = [
     color: "text-purple-600",
     bgColor: "bg-purple-50",
     items: [
+      { href: "/dashboard/website-stats",      label: "Website Analytics",  icon: TrendingUp,    permissionId: "inventory" },
       { href: "/dashboard/website-inventory",  label: "Website Inventory",  icon: Car,           permissionId: "inventory" },
       { href: "/dashboard/website-inquiries",  label: "Website Inquiries",  icon: MessageSquare, permissionId: "inventory" },
       { href: "/dashboard/website-sale-requests", label: "Sale Requests",   icon: Newspaper,     permissionId: "inventory" },

@@ -107,7 +107,7 @@ export const WebsiteInventoryManager = () => {
   // Add direct listing state
   const [newListing, setNewListing] = useState({
     make: "", model: "", variant: "", year: "", color: "",
-    fuelType: "", transmission: "",
+    fuelType: "", transmission: "", city: "Sukkur",
     engineNo: "", chassisNo: "", registrationNo: "",
     askingPrice: "", description: ""
   });
@@ -313,6 +313,7 @@ export const WebsiteInventoryManager = () => {
         color: newListing.color,
         fuelType: newListing.fuelType,
         transmission: newListing.transmission,
+        city: newListing.city || "Sukkur",
         engineNo: newListing.engineNo,
         chassisNo: newListing.chassisNo,
         registrationNo: newListing.registrationNo,
@@ -327,7 +328,7 @@ export const WebsiteInventoryManager = () => {
       setAddMessage("Success: Listing added to website inventory!");
       setNewListing({
         make: "", model: "", variant: "", year: "", color: "",
-        fuelType: "", transmission: "",
+        fuelType: "", transmission: "", city: "Sukkur",
         engineNo: "", chassisNo: "", registrationNo: "",
         askingPrice: "", description: ""
       });
@@ -721,7 +722,11 @@ export const WebsiteInventoryManager = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">City / Location</label>
+                  <Input value={newListing.city} onChange={e => setNewListing(p => ({ ...p, city: e.target.value }))} placeholder="e.g. Sukkur" />
+                </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-500">Engine Number</label>
                   <Input value={newListing.engineNo} onChange={e => setNewListing(p => ({ ...p, engineNo: e.target.value }))} placeholder="Optional" className="font-mono" />

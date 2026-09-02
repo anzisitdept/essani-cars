@@ -40,6 +40,7 @@ const PAGE_LINKS: SearchResult[] = [
   { id: "p-ledger",        type: "page", label: "General Ledger",       href: "/dashboard/general-ledger",      icon: BookOpen },
   { id: "p-reports",       type: "page", label: "Reports",              href: "/dashboard/reports",             icon: BarChart3 },
   { id: "p-balance",       type: "page", label: "Balance Sheet",        href: "/dashboard/reports/balance-sheet", icon: BarChart3 },
+  { id: "p-website-stats", type: "page", label: "Website Analytics & Stats", href: "/dashboard/website-stats", icon: Globe },
   { id: "p-website-inv",   type: "page", label: "Website Inventory",    href: "/dashboard/website-inventory",   icon: Globe },
   { id: "p-website-inq",   type: "page", label: "Website Inquiries",    href: "/dashboard/website-inquiries",   icon: Globe },
 ];

@@ -91,18 +91,20 @@ export const BalanceSheetReport = () => {
       // Filter out all accounts with zero balance
       allAccounts = allAccounts.filter(acc => acc.balance !== 0);
 
-      // Get stock value — sum inventory items that are In Stock
+      // Get stock value — sum active vehicles in stock from 'cars' collection
       let totalStock = 0;
       try {
-        const inventorySnap = await getDocs(
-          query(collection(db, "inventory"), where("currentStatus", "in", ["In Stock", "Available", "in_stock"]))
-        );
-        inventorySnap.docs.forEach(d => {
+        const carsSnap = await getDocs(collection(db, "cars"));
+        carsSnap.docs.forEach(d => {
           const data = d.data();
-          totalStock += (data.purchasePrice || data.price || data.costPrice || 0);
+          const isSold = data.currentStatus === "SOLD" || data.isSold || !!data.soldDate;
+          const cost = data.capitalizedCost || data.purchasePrice || 0;
+          if (!isSold && cost > 0) {
+            totalStock += cost;
+          }
         });
       } catch (e) {
-        console.warn("Could not fetch inventory stock:", e);
+        console.warn("Could not fetch cars stock:", e);
       }
       setStockValue(totalStock);
 

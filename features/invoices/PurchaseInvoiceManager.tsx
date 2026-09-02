@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/select";
 import {
   CheckCircle2, Loader2, Car, DollarSign, Users, Wallet,
-  FileText, ChevronDown, Info, CreditCard, AlertTriangle
+  FileText, ChevronDown, Info, CreditCard, AlertTriangle,
+  Trash2, ShieldAlert, X
 } from "lucide-react";
 import { SearchSelector } from "@/components/ui/SearchSelector";
 import { VehicleSelector } from "@/features/inventory/VehicleSelector";
@@ -55,6 +56,108 @@ export const PurchaseInvoiceManager = () => {
   // UI
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Delete state
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleDeleteInvoice = async () => {
+    if (!deleteTarget || !user) return;
+    const car = deleteTarget;
+
+    setDeleteLoading(true);
+    setDeleteError("");
+
+    try {
+      // 1. Query purchase vouchers for this car
+      const vouchersQuery = query(
+        collection(db, "vouchers"),
+        where("vehicleId", "==", car.id),
+        where("invoiceType", "==", "PURCHASE")
+      );
+      const vouchersSnap = await getDocs(vouchersQuery);
+      const voucherRefs = vouchersSnap.docs.map(d => doc(db, "vouchers", d.id));
+
+      // 2. Run atomic transaction
+      await runTransaction(db, async (tx) => {
+        const carRef = doc(db, "cars", car.id);
+        const carSnap = await tx.get(carRef);
+        if (!carSnap.exists()) throw new Error("Vehicle record not found.");
+
+        let payAccRef: any = null;
+        let payAccSnap: any = null;
+
+        if (car.isPaid && car.paymentAccountId) {
+          payAccRef = doc(db, "accounts", car.paymentAccountId);
+          payAccSnap = await tx.get(payAccRef);
+        } else if (!car.isPaid && car.sellerClientId) {
+          const clientRef = doc(db, "clients", car.sellerClientId);
+          const clientSnap = await tx.get(clientRef);
+          if (clientSnap.exists() && clientSnap.data().accountId) {
+            payAccRef = doc(db, "accounts", clientSnap.data().accountId);
+            payAccSnap = await tx.get(payAccRef);
+          }
+        }
+
+        let vehicleAccRef: any = null;
+        if (car.vehicleAccountId) {
+          vehicleAccRef = doc(db, "accounts", car.vehicleAccountId);
+          await tx.get(vehicleAccRef);
+        }
+
+        // WRITE PHASE
+        voucherRefs.forEach(ref => tx.delete(ref));
+
+        if (payAccRef && payAccSnap?.exists()) {
+          const prevBal = payAccSnap.data().balance || 0;
+          const restoredBal = prevBal + Number(car.purchasePrice);
+          tx.update(payAccRef, {
+            balance: restoredBal,
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid
+          });
+        }
+
+        if (vehicleAccRef) {
+          tx.delete(vehicleAccRef);
+        }
+
+        tx.update(carRef, {
+          purchasePrice: 0,
+          isPaid: false,
+          paymentAccountId: null,
+          sellerClientId: null,
+          sellerClientName: "",
+          sellerClientPhone: "",
+          vehicleAccountId: null,
+          capitalizedCost: 0,
+          hasInvestor: false,
+          investorId: null,
+          investorName: null,
+          commissionType: null,
+          commissionValue: 0,
+          purchaseReversedAt: serverTimestamp(),
+          purchaseReversedBy: user.uid
+        });
+
+        tx.set(doc(collection(db, "logs")), {
+          action: "REVERSE_PURCHASE",
+          vehicleId: car.id,
+          details: `Reversed Purchase Invoice for ${car.brandName} ${car.model} (Chassis: ${car.chassisNumber}). Reversed price: Rs. ${car.purchasePrice}`,
+          performedBy: user.uid,
+          timestamp: serverTimestamp()
+        });
+      });
+
+      setDeleteTarget(null);
+    } catch (err: any) {
+      console.error("Error reversing purchase invoice:", err);
+      setDeleteError(err.message || "Failed to delete/reverse purchase invoice.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   // Fetch only unpurchased vehicles
   useEffect(() => {
@@ -784,6 +887,7 @@ export const PurchaseInvoiceManager = () => {
                     <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wide">Payment</th>
                     <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wide">Investor</th>
                     <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-3 text-center font-semibold text-xs uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -869,6 +973,20 @@ export const PurchaseInvoiceManager = () => {
                             </span>
                           )}
                         </td>
+                        <td className="px-4 py-3 text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setDeleteError("");
+                              setDeleteTarget(inv);
+                            }}
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Purchase Invoice"
+                          >
+                            <Trash2 size={15} />
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                 </tbody>
@@ -895,6 +1013,118 @@ export const PurchaseInvoiceManager = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={!deleteLoading ? () => setDeleteTarget(null) : undefined}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-10">
+            <div className={`px-6 pt-6 pb-4 flex items-start gap-4 ${deleteTarget.isSold ? "bg-amber-50" : "bg-red-50"}`}>
+              <div className={`p-2.5 rounded-xl shrink-0 ${deleteTarget.isSold ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-600"}`}>
+                {deleteTarget.isSold ? <ShieldAlert size={22} /> : <Trash2 size={22} />}
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  {deleteTarget.isSold ? "Cannot Delete Sold Vehicle" : "Delete Purchase Invoice?"}
+                </h2>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {deleteTarget.isSold
+                    ? "This vehicle has already been sold. Reverse the sale first."
+                    : "This will permanently reverse the purchase invoice and related accounting entries."}
+                </p>
+              </div>
+              {!deleteLoading && (
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="ml-auto shrink-0 text-slate-400 hover:text-slate-600 transition-colors mt-0.5"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-b border-slate-100 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Vehicle</span>
+                <span className="font-semibold text-slate-900">{deleteTarget.brandName} {deleteTarget.model}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Chassis No.</span>
+                <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-700">
+                  {deleteTarget.chassisNumber || "—"}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Purchase Price</span>
+                <span className="font-bold text-blue-700">Rs. {Number(deleteTarget.purchasePrice || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Payment Status</span>
+                <span className={`font-semibold text-xs px-2 py-0.5 rounded-full ${deleteTarget.isPaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                  {deleteTarget.isPaid ? "Paid" : "Unpaid"}
+                </span>
+              </div>
+            </div>
+
+            {!deleteTarget.isSold && (
+              <div className="px-6 py-4 bg-red-50/50 border-b border-red-100 space-y-1.5">
+                <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-2">What will be reversed:</p>
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                  Purchase invoice voucher deleted
+                </div>
+                {deleteTarget.isPaid && deleteTarget.paymentAccountId && (
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    Rs. {Number(deleteTarget.purchasePrice).toLocaleString()} credited back to payment account
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                  Vehicle ledger account removed
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                  Vehicle returned to unpurchased registry
+                </div>
+              </div>
+            )}
+
+            {deleteError && (
+              <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-xs">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="px-6 py-5 flex gap-3 justify-end">
+              {deleteTarget.isSold ? (
+                <Button onClick={() => setDeleteTarget(null)} className="bg-slate-900 text-white">Close</Button>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleteLoading} className="border-slate-200">
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleDeleteInvoice}
+                    disabled={deleteLoading}
+                    className="bg-red-600 hover:bg-red-700 text-white gap-2 min-w-[140px]"
+                  >
+                    {deleteLoading ? (
+                      <><Loader2 size={15} className="animate-spin" /> Reversing...</>
+                    ) : (
+                      <><Trash2 size={15} /> Yes, Delete Invoice</>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
