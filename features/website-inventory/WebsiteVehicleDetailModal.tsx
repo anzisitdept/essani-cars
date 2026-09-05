@@ -1,16 +1,19 @@
 "use client";
 import { useState, ChangeEvent, useEffect } from "react";
-import { X, Upload, Loader2, Image as ImageIcon, Trash2, Calendar, Fuel, Settings2, User, Hash, CreditCard, Eye, Plus, ArrowRight, Sparkles, CheckCircle2, ShieldAlert } from "lucide-react";
+import { X, Upload, Loader2, Image as ImageIcon, Trash2, Calendar, Fuel, Settings2, User, Hash, CreditCard, Eye, EyeOff, Plus, ArrowRight, Sparkles, CheckCircle2, ShieldAlert } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { doc, updateDoc, arrayUnion, arrayRemove, DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { updateWebsiteVehicleImages } from "@/lib/websiteSync";
 
 interface WebsiteVehicleDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   vehicle: any;
+  onToggleVisibility?: (vehicle: any) => void;
+  isTogglingVisibility?: boolean;
 }
 
 const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || "";
@@ -56,7 +59,13 @@ const uploadWithRetry = async (
   throw lastError;
 };
 
-export const WebsiteVehicleDetailModal = ({ isOpen, onClose, vehicle }: WebsiteVehicleDetailModalProps) => {
+export const WebsiteVehicleDetailModal = ({
+  isOpen,
+  onClose,
+  vehicle,
+  onToggleVisibility,
+  isTogglingVisibility = false
+}: WebsiteVehicleDetailModalProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -64,6 +73,8 @@ export const WebsiteVehicleDetailModal = ({ isOpen, onClose, vehicle }: WebsiteV
   const [activeTab, setActiveTab] = useState<"specs" | "owner">("specs");
 
   if (!isOpen || !vehicle) return null;
+
+  const isHidden = vehicle.isHidden === true || vehicle.status === "Hidden";
 
   // This modal is exclusively used for website-inventory documents.
   // Always update `website-inventory/{vehicle.id}` using the `images` field,
@@ -110,6 +121,8 @@ export const WebsiteVehicleDetailModal = ({ isOpen, onClose, vehicle }: WebsiteV
         await updateDoc(listingRef, {
           images: arrayUnion(...newAssets)
         });
+        const currentAssets = vehicle.images || vehicle.assets || [];
+        await updateWebsiteVehicleImages(vehicle.id, [...currentAssets, ...newAssets]);
       }
 
       if (failedFiles.length > 0) {
@@ -133,6 +146,9 @@ export const WebsiteVehicleDetailModal = ({ isOpen, onClose, vehicle }: WebsiteV
       await updateDoc(listingRef, {
         images: arrayRemove(url)
       });
+      const currentAssets = vehicle.images || vehicle.assets || [];
+      const updatedAssets = currentAssets.filter((u: string) => u !== url);
+      await updateWebsiteVehicleImages(vehicle.id, updatedAssets);
     } catch (error) {
       console.error("Delete failed", error);
     }
@@ -168,13 +184,49 @@ export const WebsiteVehicleDetailModal = ({ isOpen, onClose, vehicle }: WebsiteV
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700 uppercase tracking-wider">
                     {vehicle.registrationNumber || "UNREGISTERED"}
                   </span>
+                  {isHidden ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                      <EyeOff size={11} /> Hidden
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+                      <CheckCircle2 size={11} /> Live Online
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500 font-medium">Chassis: {vehicle.chassisNumber} • Variant: {vehicle.variant || "Base"}</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-slate-200">
-              <X size={18} />
-            </Button>
+
+            <div className="flex items-center gap-2">
+              {onToggleVisibility && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isTogglingVisibility}
+                  onClick={() => onToggleVisibility(vehicle)}
+                  className={`h-8 text-xs font-bold gap-1.5 rounded-xl transition-all ${
+                    isHidden
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                      : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                  }`}
+                  title={isHidden ? "Unhide this car on public website" : "Hide this car from public website"}
+                >
+                  {isTogglingVisibility ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : isHidden ? (
+                    <Eye size={13} />
+                  ) : (
+                    <EyeOff size={13} />
+                  )}
+                  <span>{isHidden ? "Unhide on Website" : "Hide from Website"}</span>
+                </Button>
+              )}
+
+              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-slate-200">
+                <X size={18} />
+              </Button>
+            </div>
           </div>
 
           {/* Main Content Area */}

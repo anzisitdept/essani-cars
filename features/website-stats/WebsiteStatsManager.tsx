@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   collection, query, orderBy, getDocs, onSnapshot, where
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, websiteDb } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,8 +38,8 @@ export const WebsiteStatsManager = () => {
       setWebsiteListings(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    // 2. Fetch website sale requests ("sell your car")
-    const unsubRequests = onSnapshot(collection(db, "website-sale-requests"), (snap) => {
+    // 2. Fetch website sale requests ("used_cars")
+    const unsubRequests = onSnapshot(collection(websiteDb, "used_cars"), (snap) => {
       setSaleRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, () => {
       // Fallback if collection doesn't exist yet

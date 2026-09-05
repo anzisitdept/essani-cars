@@ -4,16 +4,24 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   CarFront, Calendar, Fuel, Settings2, ImageIcon, 
-  ChevronRight, ArrowRight, Eye, Camera, ShieldCheck 
+  ChevronRight, ArrowRight, Eye, EyeOff, Camera, ShieldCheck,
+  Loader2, Globe
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface WebsiteVehicleCardProps {
   vehicle: any;
   onOpenDetails: (vehicle: any) => void;
+  onToggleVisibility?: (vehicle: any) => void;
+  isTogglingVisibility?: boolean;
 }
 
-export const WebsiteVehicleCard = ({ vehicle, onOpenDetails }: WebsiteVehicleCardProps) => {
+export const WebsiteVehicleCard = ({
+  vehicle,
+  onOpenDetails,
+  onToggleVisibility,
+  isTogglingVisibility = false
+}: WebsiteVehicleCardProps) => {
   const assets = vehicle.images || vehicle.assets || [];
   const brandName = vehicle.make || vehicle.brandName || "Unknown Brand";
   const modelName = vehicle.model || "Unknown Model";
@@ -21,6 +29,7 @@ export const WebsiteVehicleCard = ({ vehicle, onOpenDetails }: WebsiteVehicleCar
   const modelYear = vehicle.year || vehicle.modelYear || "N/A";
   const chassisNo = vehicle.chassisNo || vehicle.chassisNumber || "N/A";
   const engineNo = vehicle.engineNo || vehicle.engineNumber || "N/A";
+  const isHidden = vehicle.isHidden === true || vehicle.status === "Hidden";
 
   // Color mappings based on color name
   const colorBubbleStyle = useMemo(() => {
@@ -41,10 +50,18 @@ export const WebsiteVehicleCard = ({ vehicle, onOpenDetails }: WebsiteVehicleCar
   return (
     <div className="relative group/card h-full">
       {/* Background glow animation */}
-      <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 rounded-2xl opacity-0 group-hover/card:opacity-100 transition duration-500 blur-sm z-0"></div>
+      <div className={`absolute -inset-0.5 rounded-2xl opacity-0 group-hover/card:opacity-100 transition duration-500 blur-sm z-0 ${
+        isHidden
+          ? "bg-gradient-to-r from-amber-500 to-orange-500"
+          : "bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500"
+      }`}></div>
       
       {/* Card Content container */}
-      <div className="relative h-full flex flex-col bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 z-10 flex flex-col">
+      <div className={`relative h-full flex flex-col border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 z-10 ${
+        isHidden
+          ? "bg-white border-amber-200/90 ring-1 ring-amber-100"
+          : "bg-white border-slate-100"
+      }`}>
         
         {/* Card Header (Image Preview & Brand info) */}
         <div className="relative aspect-[16/10] bg-slate-950 overflow-hidden shrink-0">
@@ -53,7 +70,9 @@ export const WebsiteVehicleCard = ({ vehicle, onOpenDetails }: WebsiteVehicleCar
             <img 
               src={assets[0]} 
               alt={`${brandName} ${modelName}`} 
-              className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500" 
+              className={`w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500 ${
+                isHidden ? "grayscale-[30%] opacity-90" : ""
+              }`} 
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-indigo-950 text-slate-500 space-y-2.5">
@@ -65,10 +84,19 @@ export const WebsiteVehicleCard = ({ vehicle, onOpenDetails }: WebsiteVehicleCar
           )}
 
           {/* Overlay tags */}
-          <div className="absolute top-3 left-3 right-3 flex justify-between items-center z-10">
-            <Badge className="bg-slate-900/90 text-white border-0 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md tracking-wider backdrop-blur-sm">
-              {vehicle.registrationReason || vehicle.type || "Purchase"}
-            </Badge>
+          <div className="absolute top-3 left-3 right-3 flex justify-between items-center z-10 gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Badge className="bg-slate-900/90 text-white border-0 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md tracking-wider backdrop-blur-sm">
+                {vehicle.registrationReason || vehicle.type || "Purchase"}
+              </Badge>
+
+              {isHidden && (
+                <Badge className="bg-amber-500/90 text-white border-0 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md tracking-wider flex items-center gap-1 backdrop-blur-sm">
+                  <EyeOff size={10} />
+                  Hidden
+                </Badge>
+              )}
+            </div>
 
             {assets.length > 0 && (
               <Badge className="bg-blue-600/90 text-white border-0 text-[10px] font-extrabold px-2 py-0.5 rounded-md tracking-wider flex items-center gap-1 backdrop-blur-sm">
@@ -79,13 +107,13 @@ export const WebsiteVehicleCard = ({ vehicle, onOpenDetails }: WebsiteVehicleCar
           </div>
 
           {/* Hover Overlay Button to Open Details directly */}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20">
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 gap-2">
             <Button
               onClick={() => onOpenDetails(vehicle)}
-              className="gap-2 bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg border-0 transform translate-y-2 group-hover/card:translate-y-0 transition-all duration-300 active:scale-95"
+              className="gap-2 bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-lg border-0 transform translate-y-2 group-hover/card:translate-y-0 transition-all duration-300 active:scale-95"
             >
               <Camera size={14} className="text-blue-600 animate-pulse" />
-              Manage Pictures & Info
+              Manage Info & Pictures
             </Button>
           </div>
         </div>
@@ -104,20 +132,27 @@ export const WebsiteVehicleCard = ({ vehicle, onOpenDetails }: WebsiteVehicleCar
             )}
           </div>
           
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">
-            {vehicle.variant || "Standard Edition"}
-          </p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+              {vehicle.variant || "Standard Edition"}
+            </p>
+            {vehicle.askingPrice && (
+              <p className="text-xs font-mono font-black text-emerald-700">
+                Rs. {Number(vehicle.askingPrice).toLocaleString()}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Specifications Grid */}
         <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100 shrink-0">
           <div className="p-3 space-y-2">
             <div className="flex items-center justify-between text-xs leading-none">
-              <span className="text-slate-400 flex items-center gap-1.5"><Calendar size={12} /> Model Year</span>
+              <span className="text-slate-400 flex items-center gap-1.5"><Calendar size={12} /> Year</span>
               <span className="text-slate-800 font-bold font-mono">{modelYear}</span>
             </div>
             <div className="flex items-center justify-between text-xs leading-none">
-              <span className="text-slate-400 flex items-center gap-1.5"><Fuel size={12} /> Fuel Type</span>
+              <span className="text-slate-400 flex items-center gap-1.5"><Fuel size={12} /> Fuel</span>
               <span className="text-slate-800 font-bold">{vehicle.fuelType || "N/A"}</span>
             </div>
           </div>
@@ -147,34 +182,69 @@ export const WebsiteVehicleCard = ({ vehicle, onOpenDetails }: WebsiteVehicleCar
               <span className="text-slate-400 font-bold">ENGINE:</span>
               <span className="text-slate-800 font-bold truncate max-w-[150px]">{engineNo}</span>
             </div>
-            {vehicle.ownerName && (
-              <div className="flex justify-between border-t border-slate-100 pt-1 mt-1">
-                <span className="text-slate-400 font-bold">POSSESSION:</span>
-                <span className="text-slate-800 font-bold truncate max-w-[130px]">{vehicle.ownerName}</span>
-              </div>
-            )}
           </div>
         </div>
 
         {/* Footer actions */}
-        <div className="mt-auto p-3.5 pt-2 border-t border-slate-100 bg-white flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold uppercase tracking-wider">
-            <ShieldCheck size={14} className="text-emerald-500" />
-            Active
-          </div>
+        <div className="mt-auto p-3.5 pt-2 border-t border-slate-100 bg-white flex justify-between items-center shrink-0 gap-2">
+          {/* Status badge */}
+          {isHidden ? (
+            <div className="flex items-center gap-1 text-[11px] text-amber-700 font-bold uppercase tracking-wider">
+              <EyeOff size={13} className="text-amber-500 shrink-0" />
+              <span>Hidden</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-bold uppercase tracking-wider">
+              <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
+              <span>Live Online</span>
+            </div>
+          )}
 
-          <Button 
-            onClick={() => onOpenDetails(vehicle)}
-            variant="ghost" 
-            size="sm"
-            className="h-8 text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50/80 rounded-xl px-3 transition-colors flex items-center gap-1.5 border border-blue-100"
-          >
-            <span>View & Upload</span>
-            <Eye size={13} className="shrink-0" />
-          </Button>
+          {/* Action buttons */}
+          <div className="flex items-center gap-1.5">
+            {/* Toggle Hide / Unhide Button */}
+            {onToggleVisibility && (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleVisibility(vehicle);
+                }}
+                disabled={isTogglingVisibility}
+                variant="outline"
+                size="sm"
+                className={`h-8 text-xs font-bold rounded-xl px-2.5 flex items-center gap-1 transition-all ${
+                  isHidden
+                    ? "text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
+                    : "text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100"
+                }`}
+                title={isHidden ? "Show this car on the public website" : "Hide this car from the public website"}
+              >
+                {isTogglingVisibility ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : isHidden ? (
+                  <Eye size={12} />
+                ) : (
+                  <EyeOff size={12} />
+                )}
+                <span>{isHidden ? "Unhide" : "Hide"}</span>
+              </Button>
+            )}
+
+            {/* Manage Details button */}
+            <Button 
+              onClick={() => onOpenDetails(vehicle)}
+              variant="ghost" 
+              size="sm"
+              className="h-8 text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50/80 rounded-xl px-2.5 transition-colors flex items-center gap-1 border border-blue-100"
+            >
+              <Camera size={12} className="shrink-0" />
+              <span>Manage</span>
+            </Button>
+          </div>
         </div>
 
       </div>
     </div>
   );
 };
+

@@ -1,23 +1,32 @@
+import { Suspense } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Card, CardContent } from "@/components/ui/card";
-import { Newspaper } from "lucide-react";
+import { WebsiteSaleRequestsManager } from "@/features/website-sale-requests/WebsiteSaleRequestsManager";
+import { Loader2 } from "lucide-react";
+
+export const metadata = {
+  title: "Website Car Sale Requests | Caruzen Motors Accounts",
+  description: "Manage car sale submissions from website visitors",
+};
 
 export default function WebsiteSaleRequestsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Sale Requests"
-        description="View and manage sale requests received through the website."
+        title="Website Car Sale Requests"
+        description="Review, approve, suspend, and manage customer used car listings submitted on caruzen-motors-website."
       />
-      <Card className="border-dashed border-2 border-slate-200">
-        <CardContent className="py-20 flex flex-col items-center justify-center text-slate-400 gap-4">
-          <Newspaper size={48} className="opacity-30" />
-          <p className="text-base font-medium">No sale requests yet</p>
-          <p className="text-sm text-center max-w-sm">
-            Sale requests submitted via the website will appear here once this feature is connected.
-          </p>
-        </CardContent>
-      </Card>
+
+      <Suspense
+        fallback={
+          <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
+            <Loader2 size={32} className="animate-spin text-blue-600" />
+            <p className="text-sm font-medium">Loading sale requests...</p>
+          </div>
+        }
+      >
+        <WebsiteSaleRequestsManager />
+      </Suspense>
     </div>
   );
 }
+

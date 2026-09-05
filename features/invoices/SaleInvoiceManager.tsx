@@ -2,9 +2,10 @@
 import { useState, useEffect } from "react";
 import {
   collection, onSnapshot, query, orderBy, serverTimestamp,
-  doc, runTransaction
+  doc, runTransaction, getDocs, where
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { updateWebsiteVehicleStatus } from "@/lib/websiteSync";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -259,6 +260,20 @@ export const SaleInvoiceManager = () => {
           currentStatus: "SOLD",
           updatedAt: serverTimestamp()
         });
+
+        // Update website-inventory status if published
+        if (selectedVehicle.publishedToWeb) {
+          const webInvQuery = query(collection(db, "website-inventory"), where("sourceVehicleId", "==", selectedVehicle.id));
+          const webInvSnap = await getDocs(webInvQuery);
+          webInvSnap.forEach((webDoc) => {
+            tx.update(doc(db, "website-inventory", webDoc.id), {
+              status: "Sold",
+              soldAt: serverTimestamp()
+            });
+            // Update website DB
+            updateWebsiteVehicleStatus(webDoc.id, "Sold").catch(e => console.error("Website DB status sync error:", e));
+          });
+        }
 
         // H. Log
         tx.set(doc(collection(db, "logs")), {
