@@ -488,7 +488,7 @@ export const SaleInvoiceManager = () => {
                   <Input
                     value={buyerPhone}
                     onChange={e => setBuyerPhone(e.target.value)}
-                    placeholder="e.g. 0300-1234567"
+                    placeholder="e.g. 0335-2256506"
                     className="h-10"
                   />
                 </div>

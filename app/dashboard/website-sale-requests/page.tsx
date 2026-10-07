@@ -4,7 +4,7 @@ import { WebsiteSaleRequestsManager } from "@/features/website-sale-requests/Web
 import { Loader2 } from "lucide-react";
 
 export const metadata = {
-  title: "Website Car Sale Requests | Caruzen Motors Accounts",
+  title: "Website Car Sale Requests | Essani Cars Accounts",
   description: "Manage car sale submissions from website visitors",
 };
 
@@ -13,7 +13,7 @@ export default function WebsiteSaleRequestsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Website Car Sale Requests"
-        description="Review, approve, suspend, and manage customer used car listings submitted on caruzen-motors-website."
+        description="Review, approve, suspend, and manage customer used car listings submitted on our website."
       />
 
       <Suspense

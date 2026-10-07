@@ -186,7 +186,7 @@ export function QuickAddClientDialog({ open, onClose, onCreated }: Props) {
             <Input
               value={formData.shopName}
               onChange={e => setFormData(prev => ({ ...prev, shopName: e.target.value }))}
-              placeholder="e.g. Caruzen Motors"
+              placeholder="e.g. Essani Cars"
               className="h-9"
             />
           </div>
@@ -210,7 +210,7 @@ export function QuickAddClientDialog({ open, onClose, onCreated }: Props) {
             <Input
               value={formData.phone}
               onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-              placeholder="e.g. 03001234567"
+              placeholder="e.g. 03352256506"
               className="h-9"
             />
           </div>

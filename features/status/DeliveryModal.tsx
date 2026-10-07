@@ -73,7 +73,7 @@ export const DeliveryModal = ({ isOpen, onClose, car, type }: DeliveryModalProps
       <div className="flex flex-col items-center justify-center mb-10">
         <div className="h-20 w-60 text-white flex items-center justify-center mb-3  print:text-slate-900 print:bg-transparent">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/carlogo.png" alt="Caruzen Logo" className="h-20 w-60" />
+            <img src="/carlogo.png" alt="Essani Logo" className="h-20 w-60" />
         </div>
       </div>
 
@@ -159,7 +159,7 @@ export const DeliveryModal = ({ isOpen, onClose, car, type }: DeliveryModalProps
 
       {/* Footer */}
       <div className="mt-16 pt-6 border-t border-slate-100 text-center">
-        <p className="text-[10px] text-slate-700 uppercase tracking-widest">Caruzen Tracking System &bull; Official Record &bull; {type} RECEIPT</p>
+        <p className="text-[10px] text-slate-700 uppercase tracking-widest">Essani Tracking System &bull; Official Record &bull; {type} RECEIPT</p>
         <p><b>Developed By: Anzi &. Co</b></p>
       </div>
     </div>

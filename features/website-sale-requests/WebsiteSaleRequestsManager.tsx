@@ -282,7 +282,7 @@ export const WebsiteSaleRequestsManager = () => {
       alert("No valid phone number available for this seller.");
       return;
     }
-    const message = `Salam ${req.sellerName || ""}, this is Caruzen Motors regarding your car listing for ${req.title || `${req.brand} ${req.model}`} submitted on our website...`;
+    const message = `Salam ${req.sellerName || ""}, this is Essani Cars regarding your car listing for ${req.title || `${req.brand} ${req.model}`} submitted on our website...`;
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank");
   };

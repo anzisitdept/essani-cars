@@ -263,7 +263,7 @@ export const GeneralLedgerManager = () => {
           {/* Header */}
           <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8">
             <div className="flex flex-col">
-              <img src="/carlogo.png" alt="Caruzen" className="h-14 w-auto object-contain mb-3 -ml-2" />
+              <img src="/carlogo.png" alt="Essani" className="h-14 w-auto object-contain mb-3 -ml-2" />
               <h1 className="text-2xl font-bold uppercase tracking-tight text-slate-900">All Accounts Ledger Summary</h1>
               <p className="text-xs text-slate-500 font-medium mt-0.5">Consolidated Ledger trial Balance Sheet</p>
             </div>
@@ -351,7 +351,7 @@ export const GeneralLedgerManager = () => {
 
           {/* Footer */}
           <div className="mt-12 text-[10px] text-slate-400 flex justify-between border-t border-slate-100 pt-4 uppercase">
-            <span>Caruzen accounts System</span>
+            <span>Essani accounts System</span>
             <span>Generated on {new Date().toLocaleString()}</span>
           </div>
         </div>
@@ -364,7 +364,7 @@ export const GeneralLedgerManager = () => {
         {/* Header */}
         <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8">
           <div className="flex flex-col">
-            <img src="/carlogo.png" alt="Caruzen" className="h-14 w-auto object-contain mb-3 -ml-2" />
+            <img src="/carlogo.png" alt="Essani" className="h-14 w-auto object-contain mb-3 -ml-2" />
             <h1 className="text-2xl font-bold uppercase tracking-tight text-slate-900">General Ledger Statement</h1>
             <p className="text-xs text-slate-500 font-medium mt-0.5">Account Activity Audit</p>
           </div>
@@ -467,7 +467,7 @@ export const GeneralLedgerManager = () => {
 
         {/* Footer */}
         <div className="mt-12 text-[10px] text-slate-400 flex justify-between border-t border-slate-100 pt-4 uppercase">
-          <span>Caruzen accounts System</span>
+          <span>Essani accounts System</span>
           <span>Generated on {new Date().toLocaleString()}</span>
         </div>
       </div>

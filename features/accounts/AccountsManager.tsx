@@ -425,7 +425,7 @@ export const AccountsManager = () => {
                   <label className="text-xs font-medium text-slate-500 flex items-center gap-2">
                     <Phone size={12} /> Phone Number *
                   </label>
-                  <Input required value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} placeholder="e.g. 03001234567" />
+                  <Input required value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} placeholder="e.g. 03352256506" />
                 </div>
 
                 <div className="space-y-2">

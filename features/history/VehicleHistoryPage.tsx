@@ -230,7 +230,7 @@ export const VehicleHistoryPage = () => {
 
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139); // slate-500
-        doc.text("CARUZEN TRACKING SYSTEM • OFFICIAL HISTORY RECORD", pageWidth / 2, finalY + 8, { align: "center" });
+        doc.text("ESSANI TRACKING SYSTEM • OFFICIAL HISTORY RECORD", pageWidth / 2, finalY + 8, { align: "center" });
         doc.setFont("helvetica", "bold");
         doc.text("Developed By: Anzi & Co", pageWidth / 2, finalY + 13, { align: "center" });
 

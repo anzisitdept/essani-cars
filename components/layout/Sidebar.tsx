@@ -253,7 +253,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobile
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 shrink-0">
           {!isCollapsed ? (
-            <img src="/Vendora side.png" alt="Caruzen" className="h-36 w-auto object-contain" />
+            <img src="/Vendora side.png" alt="Essani" className="h-36 w-auto object-contain" />
           ) : (
             <div className="w-full flex justify-center">
               <div className="h-8 w-8 bg-slate-900 rounded flex items-center justify-center text-white font-bold text-sm">V</div>

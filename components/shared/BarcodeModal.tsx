@@ -66,7 +66,7 @@ export const BarcodeModal = ({ isOpen, onClose, value, details }: BarcodeModalPr
               alt="Barcode" 
               className="w-[80mm] h-auto" // Standard label width
             />
-            <p className="text-[10px] mt-2">Caruzen Tracking System</p>
+            <p className="text-[10px] mt-2">Essani Tracking System</p>
         </div>
       </div>
     </>

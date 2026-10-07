@@ -64,7 +64,7 @@ export default function LoginPage() {
             <div className="relative">
               <img 
                 src="/Vendora.png" 
-                alt="Caruzen Logo" 
+                alt="Essani Logo" 
                 className="h-40 w-auto transition-transform duration-300" 
               />
             </div>
@@ -100,7 +100,7 @@ export default function LoginPage() {
             <div className="relative">
               <Input 
                 type="email" 
-                placeholder="staff@caruzen.com" 
+                placeholder="staff@essani.com" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

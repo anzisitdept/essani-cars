@@ -194,7 +194,7 @@ export const BalanceSheetReport = () => {
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
-      doc.text("Caruzen Accounts", pageWidth / 2, 11, { align: "center" });
+      doc.text("Essani Accounts", pageWidth / 2, 11, { align: "center" });
 
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
@@ -363,7 +363,7 @@ export const BalanceSheetReport = () => {
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(9);
             doc.setFont("helvetica", "bold");
-            doc.text("Caruzen Accounts — Balance Sheet (continued)", pageWidth / 2, 6, { align: "center" });
+            doc.text("Essani Accounts — Balance Sheet (continued)", pageWidth / 2, 6, { align: "center" });
             doc.setFont("helvetica", "normal");
             doc.setTextColor(203, 213, 225);
             doc.text(`As of ${dateLabel}`, pageWidth / 2, 11, { align: "center" });
@@ -464,7 +464,7 @@ export const BalanceSheetReport = () => {
         >
           {/* Header */}
           <div className="text-center py-6 border-b border-slate-200 bg-slate-900">
-            <h1 className="text-2xl font-bold text-white">Caruzen Accounts</h1>
+            <h1 className="text-2xl font-bold text-white">Essani Accounts</h1>
             <h2 className="text-base font-semibold text-slate-300 mt-1">Balance Sheet</h2>
             <p className="text-sm text-slate-400 mt-1">
               As of {new Date(asOfDate + "T00:00:00").toLocaleDateString("en-PK", {
@@ -581,7 +581,7 @@ export const BalanceSheetReport = () => {
 
           {/* Footer */}
           <div className="p-4 text-center text-xs text-slate-400 border-t border-slate-100">
-            Generated on {new Date().toLocaleString("en-PK")} — Caruzen Accounts
+            Generated on {new Date().toLocaleString("en-PK")} — Essani Accounts
           </div>
         </div>
       )}

@@ -115,7 +115,7 @@ export const UserManagement = () => {
     const roleName = selectedRole ? selectedRole.name : "Manager"; // Fallback
 
     // Handle signature upload
-    let signatureUrl: string | undefined;
+    let signatureUrl: string | null = null;
     if (signatureRef.current && !signatureRef.current.isEmpty()) {
       try {
         setUploadingSignature(true);
@@ -192,7 +192,7 @@ export const UserManagement = () => {
       const roleName = selectedRole ? selectedRole.name : editingUser.role;
 
       // Handle signature upload if changed
-      let signatureUrl = editingUser.signatureUrl;
+      let signatureUrl = editingUser.signatureUrl ?? null;
       if (signatureRef.current && !signatureRef.current.isEmpty()) {
         try {
           setUploadingSignature(true);
@@ -396,7 +396,7 @@ export const UserManagement = () => {
               name="email"
               type="email"
               required
-              placeholder="user@caruzen.com"
+              placeholder="user@essani.com"
               defaultValue={editingUser?.email || ""}
               disabled={!!editingUser} // Email cannot be changed here easily
               className={editingUser ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}

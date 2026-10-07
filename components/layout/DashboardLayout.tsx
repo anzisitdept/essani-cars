@@ -40,7 +40,7 @@ export const DashboardLayout = ({ children }: { children: ReactNode }) => {
             <Button variant="ghost" size="icon" className="md:hidden -ml-2" onClick={() => setIsMobileSidebarOpen(true)}>
               <Menu size={24} />
             </Button>
-            <h2 className="text-lg font-semibold text-slate-800">Caruzen Tracking</h2>
+            <h2 className="text-lg font-semibold text-slate-800">Essani Tracking</h2>
           </div>
 
           <div className="flex items-center gap-4">
