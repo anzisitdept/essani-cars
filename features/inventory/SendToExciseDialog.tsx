@@ -98,7 +98,7 @@ export const SendToExciseDialog = ({ isOpen, onClose, vehicle, onSuccess }: Send
                 </DialogHeader>
 
                 {step === 1 ? (
-                    <div className="grid grid-cols-2 gap-4 py-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
                         <button
                             onClick={() => setPurpose("New Registration")}
                             className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center ${purpose === "New Registration"
@@ -125,7 +125,7 @@ export const SendToExciseDialog = ({ isOpen, onClose, vehicle, onSuccess }: Send
                     <div className="py-2 space-y-6">
                         <div className="space-y-3">
                             <Label className="text-base font-semibold">Delivery Method</Label>
-                            <RadioGroup value={method} onValueChange={setMethod} className="grid grid-cols-2 gap-4">
+                            <RadioGroup value={method} onValueChange={setMethod} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <RadioGroupItem value="courier" id="courier" className="peer sr-only" />
                                     <Label

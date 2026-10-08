@@ -44,7 +44,7 @@ function DeleteConfirmDialog({ vehicle, onConfirm, onCancel, loading, error }: D
       />
 
       {/* Dialog */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100vh-2rem)] border border-slate-200 overflow-hidden overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className={`px-6 pt-6 pb-4 flex items-start gap-4 ${isSold ? "bg-amber-50" : "bg-red-50"}`}>
           <div className={`p-2.5 rounded-xl shrink-0 ${isSold ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-600"}`}>
@@ -74,7 +74,7 @@ function DeleteConfirmDialog({ vehicle, onConfirm, onCancel, loading, error }: D
         <div className="px-6 py-4 border-b border-slate-100 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-slate-500">Vehicle</span>
-            <span className="font-semibold text-slate-900">{vehicle?.brandName} {vehicle?.model}</span>
+            <span className="font-semibold text-slate-900 truncate">{vehicle?.brandName} {vehicle?.model}</span>
           </div>
           {vehicle?.variant && (
             <div className="flex justify-between text-sm">
@@ -101,7 +101,7 @@ function DeleteConfirmDialog({ vehicle, onConfirm, onCancel, loading, error }: D
           {vehicle?.sellerClientName && (
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Seller</span>
-              <span className="font-medium text-slate-700">{vehicle.sellerClientName}</span>
+              <span className="font-medium text-slate-700 truncate">{vehicle.sellerClientName}</span>
             </div>
           )}
         </div>
@@ -146,7 +146,7 @@ function DeleteConfirmDialog({ vehicle, onConfirm, onCancel, loading, error }: D
         )}
 
         {/* Actions */}
-        <div className="px-6 py-5 flex gap-3 justify-end">
+        <div className="px-6 py-5 flex flex-wrap gap-3 justify-end">
           {isSold ? (
             <Button onClick={onCancel} className="bg-slate-900 text-white">Close</Button>
           ) : (

@@ -84,7 +84,7 @@ export const WebsiteVehicleCard = ({
           )}
 
           {/* Overlay tags */}
-          <div className="absolute top-3 left-3 right-3 flex justify-between items-center z-10 gap-1.5">
+          <div className="absolute top-3 left-3 right-3 flex max-sm:flex-wrap justify-between items-center z-10 gap-1.5">
             <div className="flex items-center gap-1.5">
               <Badge className="bg-slate-900/90 text-white border-0 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md tracking-wider backdrop-blur-sm">
                 {vehicle.registrationReason || vehicle.type || "Purchase"}

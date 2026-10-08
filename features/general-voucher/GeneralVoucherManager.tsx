@@ -343,12 +343,12 @@ export const GeneralVoucherManager = () => {
 
       {/* Account Info Tables */}
       <div className="space-y-6 mb-8">
-        <div className="grid grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
           {/* Source Account (Debit/Credit from) */}
           <div className="border rounded-lg p-4 bg-slate-50/50">
             <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Debited / From Account (Source)</span>
             <span className="text-base font-bold text-slate-950 block">{voucher.fromAccountName}</span>
-            <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-200/60 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-200/60 text-xs">
               <div>
                 <span className="text-slate-400 block">Previous Bal</span>
                 <span className="font-semibold text-slate-800">Rs. {voucher.fromPrevBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
@@ -364,7 +364,7 @@ export const GeneralVoucherManager = () => {
           <div className="border rounded-lg p-4 bg-slate-50/50">
             <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Credited / To Account (Destination)</span>
             <span className="text-base font-bold text-slate-950 block">{voucher.toAccountName}</span>
-            <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-200/60 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-200/60 text-xs">
               <div>
                 <span className="text-slate-400 block">Previous Bal</span>
                 <span className="font-semibold text-slate-800">Rs. {voucher.toPrevBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
@@ -390,7 +390,7 @@ export const GeneralVoucherManager = () => {
       </div>
 
       {/* Signature Lines */}
-      <div className="grid grid-cols-3 gap-8 mt-16 pt-8 border-t border-slate-200 text-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-16 pt-8 border-t border-slate-200 text-center">
         <div>
           <div className="h-12 border-b border-dashed border-slate-300"></div>
           <span className="text-[10px] uppercase font-bold text-slate-400 mt-2 block">Prepared By</span>
@@ -547,7 +547,7 @@ export const GeneralVoucherManager = () => {
             </div>
           ) : (
             <form onSubmit={handleCreateVoucher} className="space-y-4 py-2">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-500 block">Voucher No (Auto)</label>
                   <Input value={`JV-${nextVoucherNo.toString().padStart(4, '0')}`} disabled className="bg-slate-100 font-mono font-bold cursor-not-allowed" />
@@ -559,7 +559,7 @@ export const GeneralVoucherManager = () => {
               </div>
 
               {/* Accounts Selection Grid */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-500 block">From Account (Source) *</label>
                   <SearchSelector
@@ -615,7 +615,7 @@ export const GeneralVoucherManager = () => {
               {/* Balances Display Card */}
               {(formData.fromAccountId || formData.toAccountId) && (
                 <div className="border rounded-lg overflow-hidden bg-slate-50">
-                  <div className="grid grid-cols-2 divide-x border-b p-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x border-b p-3 text-xs">
                     {/* From Account Balances */}
                     <div className="pr-3 space-y-1">
                       <span className="text-[10px] text-slate-400 font-bold uppercase block">From Account (Change)</span>
@@ -693,10 +693,10 @@ export const GeneralVoucherManager = () => {
       {selectedPrintVoucher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200 print-hide">
           <Card className="w-full max-w-4xl max-h-[90vh] flex flex-col shadow-xl bg-white overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-4 border-b border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-2 min-w-0">
                 <Printer className="text-slate-500" size={20} />
-                <h3 className="font-semibold text-slate-700">Voucher Print Preview</h3>
+                <h3 className="font-semibold text-slate-700 truncate">Voucher Print Preview</h3>
               </div>
               <div className="flex gap-2">
                 <Button onClick={handlePrint} className="gap-2 bg-slate-900 hover:bg-slate-800 text-white">

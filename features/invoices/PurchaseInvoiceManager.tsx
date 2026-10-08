@@ -518,8 +518,8 @@ export const PurchaseInvoiceManager = () => {
                 ? "bg-red-50 text-red-700 border border-red-100"
                 : "bg-green-50 text-green-700 border border-green-100"
             }`}>
-              {!message.startsWith("Error") && <CheckCircle2 size={16} />}
-              {message.startsWith("Error") && <AlertTriangle size={16} />}
+              {!message.startsWith("Error") && <CheckCircle2 size={16} className="shrink-0" />}
+              {message.startsWith("Error") && <AlertTriangle size={16} className="shrink-0" />}
               {message}
             </div>
           )}
@@ -591,7 +591,7 @@ export const PurchaseInvoiceManager = () => {
           {/* Seller / Client Selection */}
           {selectedVehicle && (
             <div className="space-y-3 pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                 <div className="p-1.5 bg-purple-100 rounded-md text-purple-600"><Users size={14} /></div>
                 <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Seller / Client</h4>
                 <span className="text-xs text-slate-400 italic">(Optional — required for unpaid payable entry)</span>
@@ -658,7 +658,7 @@ export const PurchaseInvoiceManager = () => {
               </div>
 
               {/* Paid / Unpaid Toggle */}
-              <div className="flex items-center gap-4 p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-4 p-3.5 bg-slate-50 rounded-xl border border-slate-100">
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -688,6 +688,7 @@ export const PurchaseInvoiceManager = () => {
                     onChange={setPaymentAccountId}
                     placeholder="Select cash / bank account..."
                     searchPlaceholder="Search account..."
+                    dropdownWidthClassName="w-[400px] max-w-[calc(100vw-2rem)]"
                     getSearchFields={(acc) => [acc.name, acc.typeName]}
                     itemKey={(acc) => acc.id}
                     renderTrigger={(selected) =>
@@ -738,7 +739,7 @@ export const PurchaseInvoiceManager = () => {
                         searchPlaceholder="Search investor..."
                         getSearchFields={(inv) => [inv.name, inv.phone]}
                         itemKey={(inv) => inv.id}
-                        dropdownWidthClassName="w-[300px]"
+                        dropdownWidthClassName="w-[300px] max-w-[calc(100vw-2rem)]"
                         renderTrigger={(selected) =>
                           selected ? (
                             <span>{selected.name}</span>
@@ -844,8 +845,8 @@ export const PurchaseInvoiceManager = () => {
 
       {/* ── Purchase Invoices History Table ── */}
       <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-y-3 mb-4">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
             <div className="p-2.5 bg-blue-600 rounded-xl text-white shadow">
               <FileText size={18} />
             </div>
@@ -862,7 +863,7 @@ export const PurchaseInvoiceManager = () => {
             placeholder="Search by vehicle, chassis..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 w-64"
+            className="h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 w-full sm:w-64"
           />
         </div>
 
@@ -1002,7 +1003,7 @@ export const PurchaseInvoiceManager = () => {
               </div>
             )}
             {/* Footer summary */}
-            <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-slate-50 border-t border-slate-100 flex items-center justify-between">
+            <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-slate-50 border-t border-slate-100 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
               <span className="text-xs text-slate-400">
                 Showing {purchaseInvoices.length} purchase invoice{purchaseInvoices.length !== 1 ? "s" : ""}
               </span>

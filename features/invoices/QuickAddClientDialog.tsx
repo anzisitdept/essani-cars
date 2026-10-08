@@ -144,7 +144,7 @@ export function QuickAddClientDialog({ open, onClose, onCreated }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus size={18} className="text-emerald-600" />
@@ -161,7 +161,7 @@ export function QuickAddClientDialog({ open, onClose, onCreated }: Props) {
               ? "bg-red-50 text-red-700 border border-red-100"
               : "bg-green-50 text-green-700 border border-green-100"
           }`}>
-            {!message.startsWith("Error") && <CheckCircle2 size={14} />}
+            {!message.startsWith("Error") && <CheckCircle2 size={14} className="shrink-0" />}
             {message}
           </div>
         )}

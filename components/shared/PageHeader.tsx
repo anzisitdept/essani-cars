@@ -7,8 +7,8 @@ interface PageHeaderProps {
 }
 
 export const PageHeader = ({ title, description, action }: PageHeaderProps) => (
-  <div className="flex items-center justify-between mb-8">
-    <div className="space-y-1">
+  <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+    <div className="min-w-0 space-y-1">
       <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
       <p className="text-sm text-slate-500">{description}</p>
     </div>

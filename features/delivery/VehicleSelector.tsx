@@ -64,7 +64,7 @@ export function VehicleSelector({ vehicles, value, onChange, placeholder = "Sele
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[350px] p-0" align="start">
+            <PopoverContent className="w-[350px] max-w-[calc(100vw-2rem)] p-0" align="start">
                 <div className="flex items-center border-b px-3">
                     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                     <Input

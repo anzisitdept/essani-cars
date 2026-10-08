@@ -328,7 +328,7 @@ export const RegistryForm = () => {
         )}
       </div>
       {client ? (
-        <div className="grid grid-cols-2 gap-y-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
           <span className="text-slate-500 text-xs">Name:</span>
           <span className="font-medium text-slate-900 text-right">{client.name}</span>
           <span className="text-slate-500 text-xs">Contact:</span>
@@ -699,7 +699,7 @@ export const RegistryForm = () => {
 
           {/* 4. Ownership (Client Link) - Updated for Dual Ownership */}
           <div className="space-y-5 bg-slate-50 p-6 rounded-xl border border-slate-100">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-purple-100 rounded-md text-purple-600">
                   <User size={16} />

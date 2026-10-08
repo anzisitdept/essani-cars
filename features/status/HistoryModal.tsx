@@ -129,8 +129,8 @@ export const HistoryModal = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
       <Card className="w-full max-w-lg max-h-[85vh] flex flex-col shadow-xl bg-white dark:bg-slate-900">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
-          <div>
-            <h3 className="font-semibold text-lg">{title}</h3>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-lg truncate">{title}</h3>
             <p className="text-xs text-slate-500">{carModel} • <span className="font-mono">{chassisNumber}</span></p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">

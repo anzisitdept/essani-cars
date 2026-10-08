@@ -275,17 +275,17 @@ export const AssetsModal = ({ isOpen, onClose, car }: AssetsModalProps) => {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
         <Card className="w-full max-w-4xl max-h-[85vh] flex flex-col shadow-xl bg-white overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-2 p-4 border-b border-slate-100 bg-slate-50 max-sm:flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
                 <ImageIcon size={20} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-semibold text-slate-900">Vehicle Assets</h3>
                 <p className="text-xs text-slate-500">{car.model} • {car.chassisNumber}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0 ml-auto max-sm:flex-wrap">
               {localAssets.length > 0 && (
                 <>
                   <Button
@@ -325,9 +325,9 @@ export const AssetsModal = ({ isOpen, onClose, car }: AssetsModalProps) => {
             </div>
           </div>
 
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1 overflow-hidden max-sm:flex-col max-sm:overflow-y-auto">
             {/* Gallery Area */}
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 max-sm:min-h-[300px]">
               {localAssets.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {localAssets.map((url, index) => (
@@ -358,7 +358,7 @@ export const AssetsModal = ({ isOpen, onClose, car }: AssetsModalProps) => {
                       />
 
                       {/* Overlay Actions */}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity flex items-center justify-center gap-2">
                         {/* View Button */}
                         <button
                           onClick={(e) => {
@@ -398,7 +398,7 @@ export const AssetsModal = ({ isOpen, onClose, car }: AssetsModalProps) => {
             </div>
 
             {/* Sidebar / Upload Area */}
-            <div className="w-72 border-l border-slate-200 bg-white p-6 flex flex-col">
+            <div className="w-72 border-l border-slate-200 bg-white p-6 flex flex-col max-sm:w-full max-sm:border-t max-sm:border-l-0">
               <h4 className="font-semibold text-sm text-slate-900 mb-4">Add New Assets</h4>
 
               <div className="relative flex flex-col items-center justify-center p-6 border-2 border-dashed border-blue-100 bg-blue-50/50 rounded-xl hover:bg-blue-50 transition-colors cursor-pointer group">

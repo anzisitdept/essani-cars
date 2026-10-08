@@ -199,7 +199,7 @@ export const InventoryManager = () => {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Button
                 variant="outline"
                 className="bg-white hover:bg-slate-50 text-blue-600 border-blue-200"

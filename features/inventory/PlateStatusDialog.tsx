@@ -111,7 +111,7 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
                 <div className="py-4 space-y-4">
                     {hasNewPlates && (
                         <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs space-y-1 text-purple-900">
-                            <div className="flex items-center justify-between font-bold">
+                            <div className="flex flex-wrap items-center justify-between gap-1 font-bold">
                                 <span>✨ New Number Plates Issued by Excise</span>
                                 <Badge className="bg-purple-600 text-white text-[10px]">NEW PLATES</Badge>
                             </div>
@@ -122,7 +122,7 @@ export const PlateStatusDialog = ({ isOpen, onClose, vehicle }: PlateStatusDialo
                         </div>
                     )}
 
-                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
                         <span className="text-sm font-medium text-slate-500">
                             {hasNewPlates ? "New Plate Status:" : "Current Status:"}
                         </span>

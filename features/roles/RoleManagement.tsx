@@ -260,7 +260,7 @@ export const RoleManagement = () => {
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity">
                                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setEditingRole(r)}>
                                                 <Pencil size={14} className="text-blue-600" />
                                             </Button>

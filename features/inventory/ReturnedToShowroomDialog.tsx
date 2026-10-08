@@ -125,7 +125,7 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
                 <div className="py-4 space-y-5">
                     <div className="space-y-3">
                         <Label className="text-base font-semibold">Delivery Method</Label>
-                        <RadioGroup value={method} onValueChange={setMethod} className="grid grid-cols-2 gap-4">
+                        <RadioGroup value={method} onValueChange={setMethod} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <RadioGroupItem value="courier" id="courier" className="peer sr-only" />
                                 <Label
@@ -184,7 +184,7 @@ export const ReturnedToShowroomDialog = ({ isOpen, onClose, vehicle, onSuccess }
                         {newPlatesIssued && (
                             <div className="pt-2 border-t border-purple-200/60 space-y-2">
                                 <Label className="text-xs font-semibold text-purple-900">Current Location / Status of New Plates</Label>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                     {[
                                         { id: "Showroom", label: "Showroom" },
                                         { id: "At Excise", label: "At Excise" },

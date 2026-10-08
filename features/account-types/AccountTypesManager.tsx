@@ -170,7 +170,7 @@ export const AccountTypesManager = () => {
 
         {message && (
           <div className={`mb-4 p-3 rounded text-xs font-medium flex items-center gap-2 ${message.includes('Error') ? 'bg-red-50 text-red-700' : message.includes('Note') ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
-            {(!message.includes('Error') && !message.includes('Note')) && <CheckCircle2 size={14} />}
+            {(!message.includes('Error') && !message.includes('Note')) && <CheckCircle2 size={14} className="shrink-0" />}
             {message}
           </div>
         )}
@@ -222,12 +222,12 @@ export const AccountTypesManager = () => {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[300px]">
           {filteredTypes.map(type => (
-            <div key={type.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all">
-              <div className="flex items-center gap-4">
+            <div key={type.id} className="group flex flex-wrap sm:flex-nowrap items-center justify-between gap-y-3 p-4 bg-white border border-slate-100 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all">
+              <div className="flex items-center gap-4 min-w-0">
                 <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold">
                   {type.name.charAt(0).toUpperCase()}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h4 className="font-semibold text-slate-900">
                     {type.name}
                   </h4>
@@ -239,7 +239,7 @@ export const AccountTypesManager = () => {
                 </div>
               </div>
 
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex gap-2 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button variant="ghost" size="sm" onClick={() => handleEdit(type)} title="Edit">
                   <Pencil size={16} className="text-blue-600" />
                 </Button>

@@ -51,7 +51,7 @@ export function VehicleSelector({
         return [name, v.brandName, v.model, chassis, reg];
       }}
       itemKey={(v) => v.id}
-      dropdownWidthClassName="w-[450px]"
+      dropdownWidthClassName="w-[450px] max-w-[calc(100vw-2rem)]"
       renderTrigger={(selected) =>
         selected ? (
           <span className="truncate flex items-center justify-between w-full">

@@ -355,7 +355,7 @@ export function GlobalSearch() {
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-2 border-t border-slate-100 bg-slate-50 flex items-center gap-4 text-[11px] text-slate-400">
+            <div className="px-4 py-2 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400">
               <span className="flex items-center gap-1"><kbd className="font-mono bg-white border border-slate-200 rounded px-1 py-0.5 shadow-sm">↑</kbd><kbd className="font-mono bg-white border border-slate-200 rounded px-1 py-0.5 shadow-sm">↓</kbd> Navigate</span>
               <span className="flex items-center gap-1"><kbd className="font-mono bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-sm">↵</kbd> Open</span>
               <span className="flex items-center gap-1"><kbd className="font-mono bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-sm">ESC</kbd> Close</span>

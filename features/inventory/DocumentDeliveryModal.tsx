@@ -78,10 +78,10 @@ export const DocumentDeliveryModal = ({ isOpen, onClose, vehicle }: DocumentDeli
     );
 
     const DeliveryDocument = () => (
-        <div className="bg-white p-8 md:p-12 max-w-4xl mx-auto text-slate-900 font-sans relative">
+        <div className="bg-white p-4 sm:p-8 md:p-12 max-w-4xl mx-auto text-slate-900 font-sans relative">
 
             {/* --- Header --- */}
-            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-0 border-b-2 border-slate-900 pb-6 mb-8">
                 <div className="flex flex-col">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/carlogo.png" alt="Essani" className="h-16 w-auto object-contain mb-4 -ml-2" />
@@ -101,13 +101,13 @@ export const DocumentDeliveryModal = ({ isOpen, onClose, vehicle }: DocumentDeli
 
             {/* --- Main Vehicle Identity --- */}
             <div className="bg-slate-50 p-6 rounded-lg border border-slate-200 mb-8 print:border-slate-300">
-                <div className="grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     <div>
                         <p className="text-xs text-slate-500 uppercase font-bold mb-1">Make & Model</p>
                         <h2 className="text-2xl font-bold text-slate-900">{vehicle.brandName} {vehicle.model}</h2>
                         <p className="text-lg text-slate-600">{vehicle.variant}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <p className="text-xs text-slate-500 uppercase font-bold mb-1">Registration No.</p>
                             <div className="font-mono text-lg font-bold bg-white border border-slate-200 px-3 py-1 inline-block rounded">
@@ -128,7 +128,7 @@ export const DocumentDeliveryModal = ({ isOpen, onClose, vehicle }: DocumentDeli
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-12 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-12 mb-8">
                 {/* --- Key Specs --- */}
                 <div>
                     <h3 className="text-sm font-bold uppercase text-slate-900 mb-4 border-b border-slate-200 pb-2 flex items-center gap-2">
@@ -179,7 +179,7 @@ export const DocumentDeliveryModal = ({ isOpen, onClose, vehicle }: DocumentDeli
                     By signing below, I acknowledge that I have received the vehicle documents described above in good condition and as agreed.
                 </p>
 
-                <div className="grid grid-cols-2 gap-12 mt-12">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-12 mt-12">
                     <div>
                         {deliveryRecipient?.signatureUrl && (
                             <div className="mb-4">

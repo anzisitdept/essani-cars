@@ -299,8 +299,8 @@ export const ClientManager = () => {
 
       {/* Right: List */}
       <Card className="lg:col-span-2 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-4">
-          <div className="relative flex-1">
+        <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-4 max-sm:flex-wrap">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-2.5 top-2.5 text-slate-400" size={16} />
             <Input
               className="pl-9 bg-white"
@@ -316,17 +316,17 @@ export const ClientManager = () => {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {filteredClients.map(client => (
-            <div key={client.id} className="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all">
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold">
+            <div key={client.id} className="group flex items-center justify-between gap-2 p-4 bg-white border border-slate-100 rounded-xl hover:border-blue-200 hover:shadow-sm transition-all">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold">
                   {client.name.charAt(0).toUpperCase()}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h4 className="font-semibold text-slate-900">
                     {client.name}
                     {client.fatherName && <span className="text-xs font-normal text-slate-500 ml-1">s/o {client.fatherName}</span>}
                   </h4>
-                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5 max-sm:flex-wrap">
                     <span className="flex items-center gap-1"><Phone size={10} /> {client.phone}</span>
                     {client.address && <span className="flex items-center gap-1 border-l pl-3 border-slate-200"><MapPin size={10} /> {client.address}</span>}
                   </div>
@@ -334,7 +334,7 @@ export const ClientManager = () => {
               </div>
 
 
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex shrink-0 gap-2 opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity">
                 <Button variant="ghost" size="sm" onClick={() => setAssetsClient(client)} title="Assets">
                   <ImageIcon size={16} className="text-purple-600" />
                 </Button>

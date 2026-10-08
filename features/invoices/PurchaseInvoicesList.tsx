@@ -378,7 +378,7 @@ export function PurchaseInvoicesList() {
           </div>
           
           {/* Footer Summary */}
-          <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-slate-50 border-t border-slate-100 flex items-center justify-between">
+          <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-slate-50 border-t border-slate-100 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
             <span className="text-xs text-slate-400">
               Showing {filteredInvoices.length} of {invoices.length} purchase invoice{invoices.length !== 1 ? "s" : ""}
             </span>

@@ -3,7 +3,7 @@ import { PurchaseInvoiceManager } from "@/features/invoices/PurchaseInvoiceManag
 
 export default function PurchaseInvoicePage() {
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Purchase Invoice</h1>
         <p className="text-sm text-slate-500 mt-1">

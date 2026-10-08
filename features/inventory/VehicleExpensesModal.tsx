@@ -196,7 +196,7 @@ export const VehicleExpensesModal = ({ isOpen, onClose, vehicle }: VehicleExpens
         </DialogHeader>
 
         {/* Summary Bar */}
-        <div className="grid grid-cols-3 gap-3 py-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 py-2">
           <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 text-center">
             <p className="text-xs text-blue-500 font-medium">Purchase Price</p>
             <p className="text-sm font-bold text-blue-900">Rs. {Number(vehicle?.purchasePrice || 0).toLocaleString()}</p>

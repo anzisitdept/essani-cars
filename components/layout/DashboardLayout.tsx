@@ -35,15 +35,15 @@ export const DashboardLayout = ({ children }: { children: ReactNode }) => {
         isSidebarCollapsed ? "md:pl-20" : "md:pl-64"
       )}>
         <header className="h-16 border-b border-slate-200 bg-white sticky top-0 z-40 px-4 md:px-8 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {/* Mobile Hamburger */}
-            <Button variant="ghost" size="icon" className="md:hidden -ml-2" onClick={() => setIsMobileSidebarOpen(true)}>
+            <Button variant="ghost" size="icon" className="md:hidden -ml-2 shrink-0" onClick={() => setIsMobileSidebarOpen(true)}>
               <Menu size={24} />
             </Button>
-            <h2 className="text-lg font-semibold text-slate-800">Essani Tracking</h2>
+            <h2 className="text-lg font-semibold text-slate-800 truncate">Essani Tracking</h2>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 shrink-0">
             <GlobalSearch />
 
             {/* User Profile Section - Hover for Logout */}

@@ -171,13 +171,13 @@ export const WebsiteVehicleDetailModal = ({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
         <Card className="w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl bg-white rounded-2xl border-0 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/80">
+          <div className="flex items-center justify-between max-sm:flex-wrap max-sm:gap-3 p-5 border-b border-slate-100 bg-slate-50/80">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-gradient-to-tr from-blue-500 to-indigo-600 text-white rounded-xl shadow-md shadow-blue-500/20">
                 <ImageIcon size={20} />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex max-sm:flex-wrap max-sm:gap-y-1 items-center gap-2">
                   <h3 className="font-bold text-lg text-slate-900 tracking-tight">
                     {vehicle.brandName} <span className="text-slate-400 font-normal">{vehicle.model}</span>
                   </h3>

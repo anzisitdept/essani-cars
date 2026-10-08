@@ -466,7 +466,7 @@ export const WebsiteInventoryManager = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-full md:w-fit">
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-full md:w-fit max-sm:overflow-x-auto">
           {tabs.map(tab => (
             <button
               key={tab.key}
@@ -598,7 +598,7 @@ export const WebsiteInventoryManager = () => {
               ) : (
                 filteredDrafts.map(vehicle => (
                   <div key={vehicle.id}
-                    className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:border-amber-200 hover:shadow-sm transition-all">
+                    className="flex items-center justify-between max-sm:flex-wrap max-sm:gap-3 p-4 bg-white border border-slate-100 rounded-xl hover:border-amber-200 hover:shadow-sm transition-all">
                     <div className="flex items-center gap-4">
                       {vehicle.assets && vehicle.assets.length > 0 ? (
                         <div 
@@ -617,7 +617,7 @@ export const WebsiteInventoryManager = () => {
                           {vehicle.brandName} {vehicle.model}
                           {vehicle.variant && <span className="text-xs font-normal text-slate-500 ml-1">{vehicle.variant}</span>}
                         </h4>
-                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                        <div className="flex max-sm:flex-wrap items-center gap-3 text-xs text-slate-500 mt-0.5">
                           <span>Year: {vehicle.modelYear || vehicle.year}</span>
                           <span className="border-l pl-3 border-slate-200">{vehicle.color}</span>
                           <span className="border-l pl-3 border-slate-200 font-mono">{vehicle.chassisNumber}</span>
@@ -629,7 +629,7 @@ export const WebsiteInventoryManager = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 shrink-0 items-center">
+                    <div className="flex gap-2 shrink-0 items-center max-sm:max-w-full max-sm:flex-wrap">
                       <div className="relative">
                         <Input
                           type="file"

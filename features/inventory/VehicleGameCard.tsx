@@ -127,7 +127,7 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                         {children}
                     </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80" align="start">
+                <PopoverContent className="w-80 max-w-[calc(100vw-2rem)]" align="start">
                     {client ? (
                         <div className="space-y-3">
                             <div className="flex items-center gap-2 pb-2 border-b">
@@ -173,7 +173,7 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                 <div className="relative p-4 border-b border-slate-100 bg-gradient-to-b from-white to-slate-50/50">
                     <div className="flex justify-between items-start">
                         <div className="space-y-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <div className="flex items-center gap-1">
                                     <Badge variant="outline" className={cn("text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full select-none", docStatusColor)}>
                                         {vehicle.fileStatus || 'Not Applied'}
@@ -219,7 +219,7 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                 </div>
 
                 {/* --- 2. Stats Grid (Tech Specs) --- */}
-                <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 divide-y divide-slate-100 sm:divide-y-0 sm:divide-x border-b border-slate-100">
                     <div className="p-3 bg-slate-50/50 space-y-3">
                         <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-500 flex items-center gap-1.5"><Calendar size={12} /> Mfg. Year</span>
@@ -537,7 +537,7 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                             {vehicle.sellerClientName && (
                                 <div className="flex justify-between">
                                     <span className="text-slate-500">SELLER:</span>
-                                    <span className="text-blue-700 font-medium">{vehicle.sellerClientName}</span>
+                                    <span className="text-blue-700 font-medium truncate">{vehicle.sellerClientName}</span>
                                 </div>
                             )}
                             <div className="flex justify-between">
@@ -557,7 +557,7 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                             {vehicle.hasInvestor && vehicle.investorName && (
                                 <div className="flex justify-between border-t border-blue-100 pt-1 mt-1">
                                     <span className="text-slate-500">INVESTOR:</span>
-                                    <span className="text-purple-700 font-medium">
+                                    <span className="text-purple-700 font-medium truncate">
                                         {vehicle.investorName} · {vehicle.commissionType === "Percentage" ? vehicle.commissionValue + "%" : "Rs. " + Number(vehicle.commissionValue).toLocaleString()}
                                     </span>
                                 </div>
@@ -577,7 +577,7 @@ export const VehicleGameCard = ({ vehicle, onEdit, onDelete, onPrintDetail, onPr
                                     {vehicle.buyerName && (
                                         <div className="flex justify-between">
                                             <span className="text-slate-500">BUYER:</span>
-                                            <span className="text-slate-900 font-medium">{vehicle.buyerName}</span>
+                                            <span className="text-slate-900 font-medium truncate">{vehicle.buyerName}</span>
                                         </div>
                                     )}
                                 </>

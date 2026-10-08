@@ -474,7 +474,7 @@ export const BalanceSheetReport = () => {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-700 text-white text-xs font-bold uppercase tracking-wide">

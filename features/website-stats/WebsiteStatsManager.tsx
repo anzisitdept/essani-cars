@@ -359,7 +359,7 @@ export const WebsiteStatsManager = () => {
       <Card className="border-slate-200/80 shadow-sm overflow-hidden">
         <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex max-sm:flex-wrap items-center gap-2">
               <button
                 onClick={() => setActiveTab("sales")}
                 className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center gap-2 ${activeTab === "sales" ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900"}`}

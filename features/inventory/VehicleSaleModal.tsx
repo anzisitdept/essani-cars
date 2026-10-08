@@ -299,7 +299,7 @@ export const VehicleSaleModal = ({ isOpen, onClose, vehicle }: VehicleSaleModalP
           </div>
 
           {/* Sale Form */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-slate-500">Sale Price (PKR) *</label>
               <Input
@@ -336,7 +336,7 @@ export const VehicleSaleModal = ({ isOpen, onClose, vehicle }: VehicleSaleModalP
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-slate-500">Buyer Name</label>
               <Input value={buyerName} onChange={e => setBuyerName(e.target.value)} placeholder="Optional" />

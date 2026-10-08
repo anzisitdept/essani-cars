@@ -33,7 +33,7 @@ export function ClientSelector({
       noItemsText="No client found."
       getSearchFields={(c) => [c.name, c.phone]}
       itemKey={(c) => c.id}
-      dropdownWidthClassName="w-[350px]"
+      dropdownWidthClassName="w-[350px] max-w-[calc(100vw-2rem)]"
       renderTrigger={(selected) =>
         selected ? (
           <span className="truncate">

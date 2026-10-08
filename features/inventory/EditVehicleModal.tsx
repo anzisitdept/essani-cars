@@ -236,9 +236,9 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
         </div>
 
         {/* Content Wrapper */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="mb-6 grid w-full grid-cols-4 bg-slate-100 p-1">
+            <TabsList className="mb-6 grid w-full grid-cols-2 sm:grid-cols-4 bg-slate-100 p-1">
               <TabsTrigger value="identity" className="gap-2"><Car size={14} /> Identity</TabsTrigger>
               <TabsTrigger value="specs" className="gap-2"><Settings2 size={14} /> Specs</TabsTrigger>
               <TabsTrigger value="ownership" className="gap-2"><User size={14} /> Ownership</TabsTrigger>
@@ -312,7 +312,7 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
 
             {/* 2. Specs TAB */}
             <TabsContent value="specs" className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-500">Fuel Type</label>
                   <Select value={formData.fuelType} onValueChange={(v) => handleChange("fuelType", v)}>
@@ -349,7 +349,7 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-500">Mfg Year</label>
                   <Input type="number" value={formData.year || ""} onChange={e => handleChange("year", e.target.value)} />

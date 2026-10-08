@@ -324,8 +324,8 @@ export const SaleInvoiceManager = () => {
                 ? "bg-red-50 text-red-700 border border-red-100"
                 : "bg-green-50 text-green-700 border border-green-100"
             }`}>
-              {!message.startsWith("Error") && <CheckCircle2 size={16} />}
-              {message.startsWith("Error") && <AlertTriangle size={16} />}
+              {!message.startsWith("Error") && <CheckCircle2 size={16} className="shrink-0" />}
+              {message.startsWith("Error") && <AlertTriangle size={16} className="shrink-0" />}
               {message}
             </div>
           )}
@@ -440,6 +440,7 @@ export const SaleInvoiceManager = () => {
                   onChange={setReceivingAccountId}
                   placeholder="Select seller account..."
                   searchPlaceholder="Search account..."
+                  dropdownWidthClassName="w-[400px] max-w-[calc(100vw-2rem)]"
                   getSearchFields={(acc) => [acc.name, acc.shopName, acc.typeName]}
                   itemKey={(acc) => acc.id}
                   renderTrigger={(selected) =>
@@ -554,8 +555,8 @@ export const SaleInvoiceManager = () => {
 
       {/* ── Sale Invoices History Table ── */}
       <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-y-3 mb-4">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
             <div className="p-2.5 bg-emerald-600 rounded-xl text-white shadow">
               <ShoppingBag size={18} />
             </div>
@@ -572,7 +573,7 @@ export const SaleInvoiceManager = () => {
             placeholder="Search by vehicle, buyer..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 w-64"
+            className="h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 w-full sm:w-64"
           />
         </div>
 
@@ -678,7 +679,7 @@ export const SaleInvoiceManager = () => {
               <span className="text-xs text-slate-400">
                 {saleInvoices.length} vehicle{saleInvoices.length !== 1 ? "s" : ""} sold
               </span>
-              <div className="flex gap-6">
+              <div className="flex flex-wrap sm:flex-nowrap gap-6">
                 <span className="text-xs text-slate-500">
                   Total Revenue: <strong className="text-emerald-700">
                     Rs. {saleInvoices.reduce((s, i) => s + (Number(i.salePrice) || 0), 0).toLocaleString()}

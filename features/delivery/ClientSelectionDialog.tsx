@@ -241,7 +241,7 @@ export const ClientSelectionDialog = ({
                     {/* Vehicle Summary */}
                     <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                         <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Vehicle Details</h4>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                             <div>
                                 <span className="text-slate-500">Model:</span>
                                 <span className="ml-2 font-semibold">{vehicle.brandName} {vehicle.model}</span>
@@ -281,7 +281,7 @@ export const ClientSelectionDialog = ({
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[400px] p-0" align="start">
+                            <PopoverContent className="w-[400px] max-w-[calc(100vw-2rem)] p-0" align="start">
                                 <div className="flex items-center border-b px-3">
                                     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                                     <Input
@@ -409,7 +409,7 @@ export const ClientSelectionDialog = ({
                             variant="destructive"
                             onClick={handleReset}
                             disabled={loading}
-                            className="absolute left-4 bg-red-100 text-red-700 hover:bg-red-200 border-red-200"
+                            className="static sm:absolute left-4 bg-red-100 text-red-700 hover:bg-red-200 border-red-200"
                         >
                             <RotateCcw className="mr-2 h-4 w-4" />
                             Reset to {deliveryType === "DOCUMENT" ? "Showroom" : "Applied"}

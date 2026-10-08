@@ -231,7 +231,7 @@ export const BanksManager = () => {
 
         {message && (
           <div className={`mb-4 p-3 rounded text-xs font-medium flex items-center gap-2 ${message.includes('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-            {!message.includes('Error') && <CheckCircle2 size={14} />}
+            {!message.includes('Error') && <CheckCircle2 size={14} className="shrink-0" />}
             {message}
           </div>
         )}
@@ -349,17 +349,17 @@ export const BanksManager = () => {
           {filteredAccounts.map(account => (
             <div
               key={account.id}
-              className={`group flex items-center justify-between p-4 bg-white border rounded-xl hover:shadow-sm transition-all ${
+              className={`group flex flex-wrap sm:flex-nowrap items-center justify-between gap-y-3 p-4 bg-white border rounded-xl hover:shadow-sm transition-all ${
                 isEditing === account.id
                   ? "border-blue-300 bg-blue-50/30 shadow-sm"
                   : "border-slate-100 hover:border-blue-200"
               }`}
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 min-w-0">
                 <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold shrink-0">
                   <Landmark size={18} />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h4 className="font-semibold text-slate-900">{account.name}</h4>
                     {isEditing === account.id && (
@@ -372,7 +372,7 @@ export const BanksManager = () => {
                     </div>
                   )}
                   {(account.accountNumber || account.iban) && (
-                    <div className="text-xs text-slate-500 mt-0.5 flex gap-3">
+                    <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap sm:flex-nowrap gap-3">
                       {account.accountNumber && <span>A/C: {account.accountNumber}</span>}
                       {account.iban && <span>IBAN: {account.iban}</span>}
                     </div>
@@ -383,7 +383,7 @@ export const BanksManager = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 ml-auto">
                 <div className="text-right shrink-0">
                   <div className={`text-sm font-bold ${account.balance < 0 ? "text-red-600" : "text-slate-900"}`}>
                     Rs. {Math.abs(account.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {account.balance < 0 ? "Cr" : "Dr"}

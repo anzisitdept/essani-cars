@@ -67,7 +67,7 @@ export const DeliveryModal = ({ isOpen, onClose, car, type }: DeliveryModalProps
   const content = getContent();
 
   const DeliveryDocument = () => (
-    <div className="bg-white p-8 md:p-12 max-w-3xl mx-auto text-slate-900 font-sans relative">
+    <div className="bg-white p-4 sm:p-8 md:p-12 max-w-3xl mx-auto text-slate-900 font-sans relative">
       
       {/* --- Header --- */}
       <div className="flex flex-col items-center justify-center mb-10">
@@ -101,7 +101,7 @@ export const DeliveryModal = ({ isOpen, onClose, car, type }: DeliveryModalProps
       {/* Vehicle Reference */}
       <div className="mb-8">
         <h3 className="text-sm font-bold uppercase text-slate-900 mb-4 border-b border-slate-100 pb-2 tracking-wide">Reference Vehicle</h3>
-        <div className="grid grid-cols-2 gap-y-6 gap-x-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
           <div>
             <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Model</p>
             <p className="font-semibold text-lg">{car.model}</p>
@@ -124,7 +124,7 @@ export const DeliveryModal = ({ isOpen, onClose, car, type }: DeliveryModalProps
       {/* Owner / Receiver Details */}
       <div className="mb-12">
         <h3 className="text-sm font-bold uppercase text-slate-900 mb-4 border-b border-slate-100 pb-2 tracking-wide">Receiver Information</h3>
-        <div className="grid grid-cols-2 gap-y-6 gap-x-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
           <div>
             <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Name</p>
             <p className="font-semibold text-lg">{car.ownerName}</p>
@@ -145,7 +145,7 @@ export const DeliveryModal = ({ isOpen, onClose, car, type }: DeliveryModalProps
       </div>
 
       {/* Signatures */}
-      <div className="grid grid-cols-2 gap-16 pt-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-16 pt-8">
         <div className="border-t-2 border-slate-300 pt-2">
           <p className="font-bold text-sm uppercase text-slate-900">Client Signature</p>
           <div className="mt-8 border-b border-dotted border-slate-300 w-2/3"></div>
@@ -171,11 +171,11 @@ export const DeliveryModal = ({ isOpen, onClose, car, type }: DeliveryModalProps
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
         <Card className="w-full max-w-4xl max-h-[90vh] flex flex-col shadow-xl bg-white overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
-            <div className="flex items-center gap-2">
-              <Printer className="text-slate-500" size={20} />
-              <h3 className="font-semibold text-slate-700">{content.title} Preview</h3>
+            <div className="flex items-center gap-2 min-w-0">
+              <Printer className="text-slate-500 shrink-0" size={20} />
+              <h3 className="font-semibold text-slate-700 truncate">{content.title} Preview</h3>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
                 <Button onClick={handlePrint} className="gap-2 bg-slate-900 hover:bg-slate-800 text-white">
                     <Printer size={16} /> Print
                 </Button>

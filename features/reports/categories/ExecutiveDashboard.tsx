@@ -225,7 +225,7 @@ export const ExecutiveDashboard = () => {
           <h2 className="text-xl font-bold text-slate-900">Executive Dashboard</h2>
           <p className="text-sm text-slate-500 mt-1">High-level view of operations and performance.</p>
         </div>
-        <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm gap-2">
+        <div className="flex flex-wrap bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm gap-2">
           <Input
             type="date"
             className="h-9 w-36 text-xs border-0 bg-slate-50 focus-visible:ring-0"
@@ -309,7 +309,7 @@ export const ExecutiveDashboard = () => {
 
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-slate-600">Document Processing</span>
+                      <span className="text-sm font-medium text-slate-600 truncate">Document Processing</span>
                       <Badge variant="outline">{docStats.find(d => d.name === 'At Excise')?.value || 0} Pending</Badge>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2">

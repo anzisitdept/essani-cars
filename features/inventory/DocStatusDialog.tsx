@@ -123,7 +123,7 @@ export const DocStatusDialog = ({ isOpen, onClose, vehicle }: DocStatusDialogPro
                     </DialogHeader>
 
                     <div className="py-4 space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
                             <span className="text-sm font-medium text-slate-500">Current Status:</span>
                             <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-white">
                                 {currentStatus}

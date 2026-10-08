@@ -283,8 +283,8 @@ export const UserManagement = () => {
             </span>
           </div>
 
-          <div className="flex gap-2">
-            <div className="relative flex-1">
+          <div className="flex gap-2 max-sm:flex-wrap">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-2.5 top-2.5 text-slate-400" size={16} />
               <Input
                 placeholder="Search by name or email..."
@@ -336,7 +336,7 @@ export const UserManagement = () => {
                     {u.createdAt?.seconds ? new Date(u.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity">
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setEditingUser(u)}>
                         <Pencil size={14} className="text-blue-600" />
                       </Button>

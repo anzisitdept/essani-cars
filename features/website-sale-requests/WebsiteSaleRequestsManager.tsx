@@ -730,7 +730,7 @@ export const WebsiteSaleRequestsManager = () => {
 
       {/* Detailed Review Modal / Drawer */}
       <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden bg-white">
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden bg-white">
           {selectedRequest && (
             <>
               {/* Header */}
@@ -864,7 +864,7 @@ export const WebsiteSaleRequestsManager = () => {
                       {selectedRequest.sellerEmail && (
                         <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
                           <span className="text-slate-400 font-semibold">Email:</span>
-                          <span className="font-semibold text-slate-800">{selectedRequest.sellerEmail}</span>
+                          <span className="min-w-0 truncate font-semibold text-slate-800">{selectedRequest.sellerEmail}</span>
                         </div>
                       )}
                       {selectedRequest.sellerCnic && (
@@ -920,7 +920,7 @@ export const WebsiteSaleRequestsManager = () => {
                   </Button>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex max-sm:flex-wrap items-center gap-2">
                   {/* Status change buttons */}
                   {selectedRequest.status !== "approved" && (
                     <Button
@@ -998,7 +998,7 @@ export const WebsiteSaleRequestsManager = () => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="p-3 bg-red-100 text-red-600 rounded-xl">
