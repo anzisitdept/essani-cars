@@ -397,7 +397,7 @@ export const BanksManager = () => {
                     size="sm"
                     onClick={() => isEditing === account.id ? resetForm() : handleEdit(account)}
                     title={isEditing === account.id ? "Cancel editing" : "Edit bank details"}
-                    className={isEditing === account.id ? "bg-blue-600 hover:bg-blue-700" : "opacity-0 group-hover:opacity-100 transition-opacity"}
+                    className={isEditing === account.id ? "bg-blue-600 hover:bg-blue-700" : "opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity"}
                   >
                     {isEditing === account.id ? <X size={16} /> : <Pencil size={16} className="text-blue-600" />}
                   </Button>

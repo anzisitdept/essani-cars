@@ -493,7 +493,7 @@ export const GeneralVoucherManager = () => {
                       {voucher.description}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity">
                         <Button variant="ghost" size="icon" className="h-8 w-8 p-0 text-blue-600" onClick={() => setSelectedPrintVoucher(voucher)} title="Print Preview">
                           <Printer size={16} />
                         </Button>

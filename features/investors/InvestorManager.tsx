@@ -350,7 +350,7 @@ export const InvestorManager = () => {
                   {investor.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <h4 className="font-semibold text-slate-900">
+                  <h4 className="font-semibold text-slate-900 truncate">
                     {investor.name}
                     {investor.fatherName && <span className="text-xs font-normal text-slate-500 ml-1">s/o {investor.fatherName}</span>}
                   </h4>

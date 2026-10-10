@@ -451,13 +451,13 @@ export const BrandModelManager = () => {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleEditVariant(variant)}
-                        className="text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity"
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => handleRemoveVariant(variant)}
-                        className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity"
                       >
                         <X size={14} />
                       </button>

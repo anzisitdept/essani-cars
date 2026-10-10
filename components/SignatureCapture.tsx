@@ -56,12 +56,12 @@ export const SignatureCapture = forwardRef<SignatureCaptureRef, SignatureCapture
 
         return (
             <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                     <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                         <PenTool size={14} />
                         {label}
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 ml-auto">
                         <Button
                             type="button"
                             variant="outline"

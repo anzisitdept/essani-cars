@@ -62,7 +62,7 @@ export const ReportTable = ({ title, description, data, columns, searchable = tr
           {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
         </div>
         
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           {searchable && (
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />

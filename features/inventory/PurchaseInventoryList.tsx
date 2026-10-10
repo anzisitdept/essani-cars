@@ -695,7 +695,7 @@ export function PurchaseInventoryList() {
                             transition-all duration-150
                             ${isSold
                               ? "text-slate-300 cursor-not-allowed bg-slate-50 border border-slate-100"
-                              : "text-red-500 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 opacity-0 group-hover:opacity-100"
+                              : "text-red-500 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 opacity-0 group-hover:opacity-100 max-sm:opacity-100"
                             }
                           `}
                         >

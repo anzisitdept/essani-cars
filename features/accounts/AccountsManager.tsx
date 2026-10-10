@@ -595,7 +595,7 @@ export const AccountsManager = () => {
                   <div className="text-[10px] text-slate-400">Balance</div>
                 </div>
 
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity">
                   <Button variant="ghost" size="sm" onClick={() => handleEdit(account)} title="Edit">
                     <Pencil size={16} className="text-blue-600" />
                   </Button>

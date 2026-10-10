@@ -79,7 +79,7 @@ export const GenericManager = ({ collectionName, title, hasValueField }: Generic
               )}
               <span className="text-sm font-medium">{item.name}</span>
             </div>
-            <button onClick={() => handleDelete(item.id)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => handleDelete(item.id)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity">
               <Trash2 size={14} />
             </button>
           </div>

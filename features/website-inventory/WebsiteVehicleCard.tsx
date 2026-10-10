@@ -107,7 +107,7 @@ export const WebsiteVehicleCard = ({
           </div>
 
           {/* Hover Overlay Button to Open Details directly */}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 gap-2">
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/card:opacity-100 max-sm:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 gap-2">
             <Button
               onClick={() => onOpenDetails(vehicle)}
               className="gap-2 bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-lg border-0 transform translate-y-2 group-hover/card:translate-y-0 transition-all duration-300 active:scale-95"
@@ -186,7 +186,7 @@ export const WebsiteVehicleCard = ({
         </div>
 
         {/* Footer actions */}
-        <div className="mt-auto p-3.5 pt-2 border-t border-slate-100 bg-white flex justify-between items-center shrink-0 gap-2">
+        <div className="mt-auto p-3.5 pt-2 border-t border-slate-100 bg-white flex justify-between items-center shrink-0 gap-2 max-sm:flex-wrap">
           {/* Status badge */}
           {isHidden ? (
             <div className="flex items-center gap-1 text-[11px] text-amber-700 font-bold uppercase tracking-wider">

@@ -239,7 +239,7 @@ export const AccountTypesManager = () => {
                 </div>
               </div>
 
-              <div className="flex gap-2 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex gap-2 ml-auto opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity">
                 <Button variant="ghost" size="sm" onClick={() => handleEdit(type)} title="Edit">
                   <Pencil size={16} className="text-blue-600" />
                 </Button>

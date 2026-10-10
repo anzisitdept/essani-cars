@@ -546,28 +546,28 @@ export default function DashboardPage() {
                 <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
                   {analytics.exciseOverdue.map(car => (
                     <div key={car.id} className="flex items-center justify-between p-2.5 bg-white border border-red-100 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xs">{car.days}D</div>
-                        <div>
-                          <div className="font-bold text-sm text-slate-800">{car.brandName} {car.model}</div>
-                          <div className="text-xs text-slate-500 font-mono">{car.chassisNumber}</div>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xs shrink-0">{car.days}D</div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-slate-800 max-sm:truncate">{car.brandName} {car.model}</div>
+                          <div className="text-xs text-slate-500 font-mono max-sm:truncate">{car.chassisNumber}</div>
                         </div>
                       </div>
-                      <Link href={`/dashboard/inventory?search=${car.chassisNumber}`}>
+                      <Link href={`/dashboard/inventory?search=${car.chassisNumber}`} className="shrink-0">
                         <Button size="sm" variant="outline" className="h-7 text-xs">View</Button>
                       </Link>
                     </div>
                   ))}
                   {analytics.plateDelayed.map(car => (
                     <div key={car.id} className="flex items-center justify-between p-2.5 bg-white border border-orange-100 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xs">{car.days}D</div>
-                        <div>
-                          <div className="font-bold text-sm text-slate-800">{car.brandName} {car.model}</div>
-                          <div className="text-xs text-slate-500 font-mono">{car.chassisNumber}</div>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xs shrink-0">{car.days}D</div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-slate-800 max-sm:truncate">{car.brandName} {car.model}</div>
+                          <div className="text-xs text-slate-500 font-mono max-sm:truncate">{car.chassisNumber}</div>
                         </div>
                       </div>
-                      <Link href={`/dashboard/inventory?search=${car.chassisNumber}`}>
+                      <Link href={`/dashboard/inventory?search=${car.chassisNumber}`} className="shrink-0">
                         <Button size="sm" variant="outline" className="h-7 text-xs">View</Button>
                       </Link>
                     </div>
@@ -593,7 +593,7 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5 pt-3">
-              <div className="flex items-center justify-between relative">
+              <div className="flex items-center justify-between relative flex-wrap gap-x-2 gap-y-2">
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -z-10 -translate-y-1/2 rounded-full" />
                 {[
                   { label: "Showroom", value: analytics.docsShowroom, cls: "bg-blue-100 text-blue-700" },
@@ -609,9 +609,9 @@ export default function DashboardPage() {
                   </>
                 ))}
               </div>
-              <div className="bg-slate-50 p-2.5 rounded-lg flex justify-between items-center text-xs">
+              <div className="bg-slate-50 p-2.5 rounded-lg flex flex-wrap justify-between items-center gap-2 text-xs">
                 <span className="text-slate-500"><b className="text-slate-800">{analytics.docsShowroom}</b> files ready for Excise</span>
-                <Link href="/dashboard/inventory"><Button size="sm" variant="ghost" className="h-6 text-blue-600 p-0 text-xs">Manage Files</Button></Link>
+                <Link href="/dashboard/inventory" className="ml-auto"><Button size="sm" variant="ghost" className="h-6 text-blue-600 p-0 text-xs">Manage Files</Button></Link>
               </div>
             </CardContent>
           </Card>
@@ -624,7 +624,7 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5 pt-3">
-              <div className="flex items-center justify-between relative">
+              <div className="flex items-center justify-between relative flex-wrap gap-x-2 gap-y-2">
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -z-10 -translate-y-1/2 rounded-full" />
                 {[
                   { label: "Showroom",      value: analytics.platesShowroom, cls: "bg-blue-100 text-blue-700" },
@@ -640,9 +640,9 @@ export default function DashboardPage() {
                   </>
                 ))}
               </div>
-              <div className="bg-slate-50 p-2.5 rounded-lg flex justify-between items-center text-xs">
+              <div className="bg-slate-50 p-2.5 rounded-lg flex flex-wrap justify-between items-center gap-2 text-xs">
                 <span className="text-slate-500"><b className="text-slate-800">{analytics.platesShowroom}</b> plates ready to deliver</span>
-                <Link href="/dashboard/delivery"><Button size="sm" variant="ghost" className="h-6 text-purple-600 p-0 text-xs">Go to Delivery</Button></Link>
+                <Link href="/dashboard/delivery" className="ml-auto"><Button size="sm" variant="ghost" className="h-6 text-purple-600 p-0 text-xs">Go to Delivery</Button></Link>
               </div>
             </CardContent>
           </Card>

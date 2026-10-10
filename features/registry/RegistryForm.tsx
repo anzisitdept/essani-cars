@@ -764,7 +764,7 @@ export const RegistryForm = () => {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-100 flex justify-end gap-4">
+          <div className="pt-6 border-t border-slate-100 flex flex-wrap justify-end gap-4">
             <Button type="button" variant="ghost" onClick={() => window.history.back()}>Cancel</Button>
             <Button type="submit" disabled={loading} className="bg-slate-900 hover:bg-slate-800 min-w-[180px]">
               {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : "Register Vehicle"}

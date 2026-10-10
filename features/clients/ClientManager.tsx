@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, Plus, Pencil, Trash2, User, Phone, Mail, MapPin, CreditCard, X, Image as ImageIcon } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, User, Phone, Mail, MapPin, CreditCard, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { ClientAssetsModal } from "./ClientAssetsModal";
 import { SignatureCapture, SignatureCaptureRef } from "@/components/SignatureCapture";
 import { uploadToImgBB } from "@/lib/imgbbUpload";
@@ -31,6 +31,7 @@ export const ClientManager = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [assetsClient, setAssetsClient] = useState<Client | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -108,6 +109,8 @@ export const ClientManager = () => {
       alert("Invalid CNIC format. Please use XXXXX-XXXXXXX-X");
       return;
     }
+
+    setIsSubmitting(true);
 
     // Handle signature upload
     let signatureUrl = editingClientSignature;
@@ -215,6 +218,8 @@ export const ClientManager = () => {
     } catch (error) {
       console.error("Error saving client:", error);
       alert("Failed to save client.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -291,8 +296,12 @@ export const ClientManager = () => {
             )}
           </div>
 
-          <Button type="submit" className="w-full bg-slate-900" disabled={uploadingSignature}>
-            {isEditing ? "Update Client" : "Add Client"}
+          <Button type="submit" className="w-full bg-slate-900" disabled={uploadingSignature || isSubmitting}>
+            {(uploadingSignature || isSubmitting) ? (
+              <><Loader2 size={16} className="mr-2 animate-spin" /> {isEditing ? "Updating Client..." : "Adding Client..."}</>
+            ) : (
+              isEditing ? "Update Client" : "Add Client"
+            )}
           </Button>
         </form>
       </Card>
@@ -322,7 +331,7 @@ export const ClientManager = () => {
                   {client.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <h4 className="font-semibold text-slate-900">
+                  <h4 className="font-semibold text-slate-900 truncate">
                     {client.name}
                     {client.fatherName && <span className="text-xs font-normal text-slate-500 ml-1">s/o {client.fatherName}</span>}
                   </h4>

@@ -45,7 +45,7 @@ const ClientField = ({ label, value, icon: Icon }: { label: string, value?: stri
                             setCopied(true);
                             setTimeout(() => setCopied(false), 2000);
                         }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 shrink-0"
+                        className="opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 shrink-0"
                         title="Copy to clipboard"
                     >
                         {copied ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}

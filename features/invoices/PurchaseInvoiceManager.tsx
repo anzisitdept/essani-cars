@@ -1101,7 +1101,7 @@ export const PurchaseInvoiceManager = () => {
               </div>
             )}
 
-            <div className="px-6 py-5 flex gap-3 justify-end">
+            <div className="px-6 py-5 flex gap-3 justify-end flex-wrap">
               {deleteTarget.isSold ? (
                 <Button onClick={() => setDeleteTarget(null)} className="bg-slate-900 text-white">Close</Button>
               ) : (
