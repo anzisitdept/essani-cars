@@ -238,7 +238,7 @@ export const EditVehicleModal = ({ isOpen, onClose, vehicle }: EditVehicleModalP
         {/* Content Wrapper */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="mb-6 grid w-full grid-cols-2 sm:grid-cols-4 bg-slate-100 p-1">
+            <TabsList className="mb-6 grid w-full h-auto sm:h-10 grid-cols-2 sm:grid-cols-4 bg-slate-100 p-1">
               <TabsTrigger value="identity" className="gap-2"><Car size={14} /> Identity</TabsTrigger>
               <TabsTrigger value="specs" className="gap-2"><Settings2 size={14} /> Specs</TabsTrigger>
               <TabsTrigger value="ownership" className="gap-2"><User size={14} /> Ownership</TabsTrigger>
