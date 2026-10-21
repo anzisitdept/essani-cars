@@ -20,6 +20,7 @@ import {
   Trash2, ShieldAlert, X
 } from "lucide-react";
 import { SearchSelector } from "@/components/ui/SearchSelector";
+import { CurrencyConverterFields } from "@/components/shared/CurrencyConverterFields";
 import { VehicleSelector } from "@/features/inventory/VehicleSelector";
 import { ClientSelector } from "@/features/registry/ClientSelector";
 
@@ -634,6 +635,9 @@ export const PurchaseInvoiceManager = () => {
                 <div className="p-1.5 bg-emerald-100 rounded-md text-emerald-600"><DollarSign size={14} /></div>
                 <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Purchase Details</h4>
               </div>
+
+              {/* Temporary currency converter (UI only, never persisted) */}
+              <CurrencyConverterFields />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
