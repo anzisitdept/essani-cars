@@ -28,6 +28,39 @@ interface UserData {
   [key: string]: any;
 }
 
+// Accounts in this list always receive full system access, even if their
+// Firestore user/role document is missing or has incomplete permissions.
+const SUPER_ADMIN_EMAILS = ["shayane.essani21@gmail.com"];
+
+// Keep in sync with the permissions in features/roles/RoleManagement.tsx.
+const ALL_PERMISSIONS = [
+  "dashboard",
+  "registry",
+  "inventory",
+  "purchase_invoice",
+  "sale_invoice",
+  "status",
+  "delivery",
+  "clients",
+  "investors",
+  "banks",
+  "accounts",
+  "account_types",
+  "cash_voucher",
+  "general_voucher",
+  "general_ledger",
+  "logs",
+  "reports",
+  "settings",
+  "users",
+  "roles",
+  "edit_delivered_vehicle",
+  "ALL",
+];
+
+const isSuperAdminEmail = (email?: string | null) =>
+  !!email && SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
+
 interface AuthContextType {
   user: User | null;
   userData: UserData | null; // Added userData to context
@@ -64,39 +97,63 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Set up real-time listener for user data (including signature updates)
         const docRef = doc(db, "users", u.uid);
         userDataUnsubscribe = onSnapshot(docRef, async (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data() as UserData;
-            let permissions: string[] = [];
+          const data = docSnap.exists() ? (docSnap.data() as UserData) : null;
 
-            // 1. If user has a roleId, fetch dynamic permissions
-            if (data.roleId) {
-              try {
-                const roleRef = doc(db, "roles", data.roleId);
-                const roleSnap = await getDoc(roleRef);
-                if (roleSnap.exists()) {
-                  permissions = roleSnap.data().permissions || [];
-                }
-              } catch (err) {
-                console.error("Error fetching permissions for role:", data.roleId, err);
-              }
-            }
-            // 2. Fallback/Legacy Logic
-            else if (data.role === 'admin') {
-              permissions = ['ALL']; // admin gets everything
-            } else if (data.role === 'manager') {
-              // Default manager permissions if no roleId attached
-              permissions = ['dashboard', 'inventory', 'status', 'logs'];
-            }
+          // Full access for the configured super-admin emails. Also treat the
+          // "Super Admin" role as all-powerful so it behaves like the sidebar.
+          if (isSuperAdminEmail(u.email) || data?.role === "Super Admin") {
+            setUserData({
+              ...(data ?? {}),
+              email: u.email ?? data?.email,
+              role: "Super Admin",
+              permissions: ALL_PERMISSIONS,
+            });
+            return;
+          }
 
-            setUserData({ ...data, permissions });
-          } else {
+          if (!data) {
             // Handle case where auth exists but no db record (fallback)
             console.warn("No user document found in Firestore for this UID");
             setUserData({ role: 'manager', permissions: [] });
+            return;
           }
+
+          let permissions: string[] = [];
+
+          // 1. If user has a roleId, fetch dynamic permissions
+          if (data.roleId) {
+            try {
+              const roleRef = doc(db, "roles", data.roleId);
+              const roleSnap = await getDoc(roleRef);
+              if (roleSnap.exists()) {
+                permissions = roleSnap.data().permissions || [];
+              }
+            } catch (err) {
+              console.error("Error fetching permissions for role:", data.roleId, err);
+            }
+          }
+          // 2. Fallback/Legacy Logic
+          else if (data.role === 'admin') {
+            permissions = ['ALL']; // admin gets everything
+          } else if (data.role === 'manager') {
+            // Default manager permissions if no roleId attached
+            permissions = ['dashboard', 'inventory', 'status', 'logs'];
+          }
+
+          setUserData({ ...data, permissions });
         }, (error) => {
           console.error("Error listening to user data:", error);
-          setUserData(null);
+          // Even if Firestore rules block the read, the configured super-admin
+          // accounts keep full access to the app.
+          if (isSuperAdminEmail(u.email)) {
+            setUserData({
+              email: u.email ?? undefined,
+              role: "Super Admin",
+              permissions: ALL_PERMISSIONS,
+            });
+          } else {
+            setUserData(null);
+          }
         });
       } else {
         setUserData(null);

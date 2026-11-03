@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:seed": "npx tsx scripts/seed-admin.ts"
+    "db:seed": "npx tsx scripts/seed-admin.ts",
+    "grant:super-admin": "node scripts/grant-super-admin.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
