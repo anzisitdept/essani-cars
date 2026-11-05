@@ -1,25 +1,29 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   collection, query, orderBy, getDocs, onSnapshot, where
 } from "firebase/firestore";
 import { db, websiteDb } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Globe, Users, Car, Newspaper, MessageSquare, TrendingUp,
-  Eye, ArrowUpRight, Calendar, Filter, RefreshCw, Sparkles, MapPin, Search
+  Eye, ArrowUpRight, Calendar, Filter, RefreshCw, MapPin, Search
 } from "lucide-react";
+import { fetchWebsiteStats, fetchWebsiteRegisteredUsers, fetchWebsiteInquiries } from "@/lib/websiteSync";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell
 } from "recharts";
 
 export const WebsiteStatsManager = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "all">("30d");
+  const [isRefreshingLive, setIsRefreshingLive] = useState(false);
 
   // Real data state from Firestore
   const [websiteListings, setWebsiteListings] = useState<any[]>([]);
@@ -78,19 +82,110 @@ export const WebsiteStatsManager = () => {
     };
   }, []);
 
+  // ------- LIVE values from the public website project -------
+  // Real counts for the live inventory and the real registered accounts
+  // (Firebase Auth registrations), served by the module's server routes.
+  const [liveStats, setLiveStats] = useState<Record<string, any> | null>(null);
+  const [registeredUsers, setRegisteredUsers] = useState<any[] | null>(null);
+
+  // All three live loaders wait for the signed-in user: the effect re-runs
+  // once auth resolves, so an early mount (token not ready yet) can't leave
+  // the page stuck on the empty software-side fallbacks.
+  const loadWebsiteLive = useCallback(async () => {
+    if (!user) { setLiveStats(null); return; }
+    try {
+      const data = await fetchWebsiteStats();
+      if (data?.error) throw new Error(data.error);
+      setLiveStats(data);
+    } catch {
+      // Falls back to the software-side numbers below.
+      setLiveStats(null);
+    }
+  }, [user]);
+
+  const loadRegisteredUsers = useCallback(async () => {
+    if (!user) { setRegisteredUsers(null); return; }
+    try {
+      const rows = await fetchWebsiteRegisteredUsers();
+      setRegisteredUsers(Array.isArray(rows) ? rows : []);
+    } catch {
+      // Falls back to the software-side mirror list.
+      setRegisteredUsers(null);
+    }
+  }, [user]);
+
+  // Customer queries captured by the public website (`queries` collection).
+  const [websiteInquiries, setWebsiteInquiries] = useState<any[] | null>(null);
+  const loadWebsiteInquiries = useCallback(async () => {
+    if (!user) { setWebsiteInquiries(null); return; }
+    try {
+      const rows = await fetchWebsiteInquiries();
+      setWebsiteInquiries(Array.isArray(rows) ? rows : []);
+    } catch {
+      // Falls back to the software-side mirror list.
+      setWebsiteInquiries(null);
+    }
+  }, [user]);
+
+  const refreshAllWebsiteLive = async () => {
+    setIsRefreshingLive(true);
+    try {
+      await Promise.all([loadWebsiteLive(), loadRegisteredUsers(), loadWebsiteInquiries()]);
+    } finally {
+      setIsRefreshingLive(false);
+    }
+  };
+
+  useEffect(() => {
+    loadWebsiteLive();
+    loadRegisteredUsers();
+    loadWebsiteInquiries();
+  }, [user, loadWebsiteLive, loadRegisteredUsers, loadWebsiteInquiries]);
+
+  // The Users and Inquiries tabs show the REAL rows from the website project
+  // when reachable; the software-side mirrors are the fallback.
+  const userRows = useMemo(() => (registeredUsers ?? websiteUsers), [registeredUsers, websiteUsers]);
+  const inquiryRows = useMemo(() => (websiteInquiries ?? inquiries), [websiteInquiries, inquiries]);
+
+  /** Renders ISO strings, epoch numbers and Firestore Timestamps alike. */
+  const formatRowDate = (v: any): string => {
+    if (!v) return "—";
+    if (typeof v === "string") {
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? v : d.toLocaleDateString();
+    }
+    if (typeof v === "number") return new Date(v).toLocaleDateString();
+    if (typeof v?.toDate === "function") return v.toDate().toLocaleDateString();
+    return "—";
+  };
+
   // Compute calculated metrics
   const stats = useMemo(() => {
     const totalListings = websiteListings.length;
     const totalSaleReqs = saleRequests.length;
-    const totalInquiriesCount = inquiries.length;
-    const totalUsersCount = websiteUsers.length;
+    const totalInquiriesCount = inquiryRows.length;
+    const totalUsersCount = userRows.length;
 
     // Sum up visitor hits or calculate active view metrics
-    const visitorHits = analyticsLogs.length > 0 
+    const visitorHits = analyticsLogs.length > 0
       ? analyticsLogs.reduce((acc, curr) => acc + (curr.views || 1), 0)
       : Math.max(1420, (totalListings * 45) + (totalInquiriesCount * 12) + 250);
 
     const pageViews = visitorHits * 3.4;
+
+    // REAL live inventory from the public website project: vehicles that
+    // visitors can actually see (published used cars + live new cars).
+    const usedLiveCount = typeof liveStats?.usedCars?.live === "number" ? liveStats.usedCars.live : null;
+    const newLiveCount = typeof liveStats?.newCars?.live === "number" ? liveStats.newCars.live : null;
+    const usedTotalCount = typeof liveStats?.usedCars?.total === "number" ? liveStats.usedCars.total : null;
+    const newTotalCount = typeof liveStats?.newCars?.total === "number" ? liveStats.newCars.total : null;
+    const brandCount = typeof liveStats?.newCars?.brands === "number" ? liveStats.newCars.brands : null;
+    const liveInventory = usedLiveCount != null && newLiveCount != null
+      ? usedLiveCount + newLiveCount
+      : null;
+
+    // REAL registered users = Auth accounts of the website project.
+    const registeredUsersCount = typeof liveStats?.users?.total === "number" ? liveStats.users.total : null;
 
     return {
       visitors: Math.round(visitorHits),
@@ -99,8 +194,15 @@ export const WebsiteStatsManager = () => {
       listings: totalListings,
       saleRequests: totalSaleReqs,
       inquiries: totalInquiriesCount,
+      liveInventory,
+      usedLiveCount,
+      newLiveCount,
+      usedTotalCount,
+      newTotalCount,
+      brandCount,
+      registeredUsersCount,
     };
-  }, [websiteListings, saleRequests, inquiries, websiteUsers, analyticsLogs]);
+  }, [websiteListings, saleRequests, analyticsLogs, liveStats, userRows, inquiryRows]);
 
   // Compute city distribution of website listings
   const cityDistribution = useMemo(() => {
@@ -151,15 +253,23 @@ export const WebsiteStatsManager = () => {
         </div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/20 border border-purple-400/30 rounded-full text-purple-300 text-xs font-semibold uppercase tracking-wider mb-3">
-              <Sparkles size={14} className="text-purple-400" /> Web Platform Performance
-            </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Website Statistics & Analytics</h1>
             <p className="text-slate-300 text-sm mt-1 max-w-2xl">
               Real-time monitoring of website visitors, user registrations, vehicle inquiries, and sell-your-car requests.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={refreshAllWebsiteLive}
+              disabled={isRefreshingLive}
+              className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl border transition ${
+                isRefreshingLive ? "text-slate-400 border-slate-700" : "text-slate-200 border-slate-700 hover:bg-slate-800"
+              }`}
+              title="Refresh the live numbers and lists from the public website"
+            >
+              <RefreshCw size={13} className={isRefreshingLive ? "animate-spin" : ""} />
+              Refresh
+            </button>
             <div className="flex bg-slate-800/80 p-1 rounded-xl border border-slate-700">
               <button
                 onClick={() => setTimeRange("7d")}
@@ -207,7 +317,9 @@ export const WebsiteStatsManager = () => {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Registered Users</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">{stats.users.toLocaleString()}</h3>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">
+                {(stats.registeredUsersCount ?? stats.users).toLocaleString()}
+              </h3>
               <p className="text-[11px] text-purple-600 font-semibold flex items-center gap-1 mt-1">
                 <Users size={12} /> Web Accounts
               </p>
@@ -218,14 +330,19 @@ export const WebsiteStatsManager = () => {
           </CardContent>
         </Card>
 
-        {/* Card 3: Active Listings */}
+        {/* Card 3: Live Inventory */}
         <Card className="border-slate-200/80 shadow-sm hover:shadow transition-shadow bg-gradient-to-br from-white to-indigo-50/30">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Live Inventory</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">{stats.listings.toLocaleString()}</h3>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">
+                {(stats.liveInventory ?? stats.listings).toLocaleString()}
+              </h3>
               <p className="text-[11px] text-indigo-600 font-semibold flex items-center gap-1 mt-1">
-                <Car size={12} /> Published Vehicles
+                <Car size={12} />
+                {stats.liveInventory != null
+                  ? `Used ${stats.usedLiveCount} • New ${stats.newLiveCount}${stats.brandCount != null ? ` (${stats.brandCount} brands)` : ""}`
+                  : "Published Vehicles"}
               </p>
             </div>
             <div className="p-3 bg-indigo-100 text-indigo-600 rounded-2xl">
@@ -370,13 +487,13 @@ export const WebsiteStatsManager = () => {
                 onClick={() => setActiveTab("inquiries")}
                 className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center gap-2 ${activeTab === "inquiries" ? "bg-white text-emerald-600 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900"}`}
               >
-                <MessageSquare size={14} /> Customer Inquiries ({inquiries.length})
+                <MessageSquare size={14} /> Customer Inquiries ({inquiryRows.length})
               </button>
               <button
                 onClick={() => setActiveTab("users")}
                 className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center gap-2 ${activeTab === "users" ? "bg-white text-purple-600 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900"}`}
               >
-                <Users size={14} /> Website Users ({websiteUsers.length})
+                <Users size={14} /> Website Users ({userRows.length})
               </button>
             </div>
 
@@ -446,31 +563,50 @@ export const WebsiteStatsManager = () => {
                 <thead className="bg-slate-100/70 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200">
                   <tr>
                     <th className="p-3.5">Customer Name</th>
-                    <th className="p-3.5">Phone</th>
-                    <th className="p-3.5">Subject / Message</th>
+                    <th className="p-3.5">Phone / Email</th>
+                    <th className="p-3.5">Looking For</th>
+                    <th className="p-3.5">Budget</th>
+                    <th className="p-3.5">Message</th>
                     <th className="p-3.5">Date</th>
+                    <th className="p-3.5 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {inquiries.length === 0 ? (
+                  {inquiryRows.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="p-8 text-center text-slate-400">
+                      <td colSpan={7} className="p-8 text-center text-slate-400">
                         No website inquiries received yet.
                       </td>
                     </tr>
                   ) : (
-                    inquiries
+                    inquiryRows
                       .filter(i => JSON.stringify(i).toLowerCase().includes(searchFilter.toLowerCase()))
-                      .map((inq) => (
-                        <tr key={inq.id} className="hover:bg-slate-50 transition">
-                          <td className="p-3.5 font-bold text-slate-900">{inq.name || "Customer"}</td>
-                          <td className="p-3.5 font-mono text-slate-600">{inq.phone || inq.email || "—"}</td>
-                          <td className="p-3.5 text-slate-700 max-w-xs truncate">{inq.message || inq.subject || "Inquiry regarding vehicle listing"}</td>
-                          <td className="p-3.5 text-slate-500 text-[11px]">
-                            {inq.createdAt?.toDate ? inq.createdAt.toDate().toLocaleDateString() : "Recent"}
-                          </td>
-                        </tr>
-                      ))
+                      .map((inq) => {
+                        const lookingFor = [inq.brand, inq.condition, inq.carType, inq.fuel]
+                          .filter(Boolean).join(" • ");
+                        return (
+                          <tr key={inq.id} className="hover:bg-slate-50 transition">
+                            <td className="p-3.5 font-bold text-slate-900">{inq.name || "Customer"}</td>
+                            <td className="p-3.5 font-mono text-slate-600">
+                              {inq.phone || inq.email || "—"}
+                              {inq.phone && inq.email && (
+                                <span className="block text-[10px] text-slate-400">{inq.email}</span>
+                              )}
+                            </td>
+                            <td className="p-3.5 text-slate-700 max-w-[180px]">{inq.brand || inq.carType || inq.condition || inq.fuel ? lookingFor : "—"}</td>
+                            <td className="p-3.5 font-mono text-slate-700">{inq.budget || "—"}</td>
+                            <td className="p-3.5 text-slate-700 max-w-xs truncate">{inq.message || "Query regarding a vehicle"}</td>
+                            <td className="p-3.5 text-slate-500 text-[11px] whitespace-nowrap">
+                              {formatRowDate(inq.createdAt) !== "—" ? formatRowDate(inq.createdAt) : "Recent"}
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                {inq.status === "resolved" ? "Resolved" : inq.status === "contacted" ? "Contacted" : "New"}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })
                   )}
                 </tbody>
               </table>
@@ -489,22 +625,27 @@ export const WebsiteStatsManager = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {websiteUsers.length === 0 ? (
+                  {userRows.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="p-8 text-center text-slate-400">
                         No registered website users recorded yet.
                       </td>
                     </tr>
                   ) : (
-                    websiteUsers
+                    userRows
                       .filter(u => JSON.stringify(u).toLowerCase().includes(searchFilter.toLowerCase()))
                       .map((usr) => (
                         <tr key={usr.id} className="hover:bg-slate-50 transition">
-                          <td className="p-3.5 font-bold text-slate-900">{usr.displayName || usr.name || "Web User"}</td>
+                          <td className="p-3.5 font-bold text-slate-900">
+                            {usr.displayName || usr.name || "Web User"}
+                            {usr.disabled === true && (
+                              <Badge variant="outline" className="ml-2 bg-slate-100 text-slate-500 border-slate-200 text-[10px]">Disabled</Badge>
+                            )}
+                          </td>
                           <td className="p-3.5 font-mono text-slate-600">{usr.email || usr.phone || "—"}</td>
-                          <td className="p-3.5 text-slate-600">{usr.city || "Sukkur"}</td>
-                          <td className="p-3.5 text-slate-500 text-[11px]">
-                            {usr.createdAt?.toDate ? usr.createdAt.toDate().toLocaleDateString() : "Active User"}
+                          <td className="p-3.5 text-slate-600">{usr.city || "—"}</td>
+                          <td className="p-3.5 text-slate-500 text-[11px] whitespace-nowrap">
+                            {formatRowDate(usr.createdAt) === "—" ? "Active User" : formatRowDate(usr.createdAt)}
                           </td>
                         </tr>
                       ))

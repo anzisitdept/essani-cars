@@ -1,12 +1,10 @@
 "use client";
-import { useState, ChangeEvent, useEffect } from "react";
-import { X, Upload, Loader2, Image as ImageIcon, Trash2, Calendar, Fuel, Settings2, User, Hash, CreditCard, Eye, EyeOff, Plus, ArrowRight, Sparkles, CheckCircle2, ShieldAlert } from "lucide-react";
+import { useState, ChangeEvent } from "react";
+import { X, Upload, Loader2, Image as ImageIcon, Trash2, Calendar, Fuel, Settings2, User, Hash, CreditCard, Eye, EyeOff, Sparkles, CheckCircle2, ShieldAlert, Star } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { doc, updateDoc, arrayUnion, arrayRemove, DocumentData } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { updateWebsiteVehicleImages } from "@/lib/websiteSync";
+import { updateWebsiteVehicleImages, updateWebsiteVehicleFeatured, removeVehicleFromWebsite } from "@/lib/websiteSync";
 
 interface WebsiteVehicleDetailModalProps {
   isOpen: boolean;
@@ -14,7 +12,20 @@ interface WebsiteVehicleDetailModalProps {
   vehicle: any;
   onToggleVisibility?: (vehicle: any) => void;
   isTogglingVisibility?: boolean;
+  /** Page-level permission (inventory / ALL / admin roles). */
+  canManage?: boolean;
+  /** Called after this modal mutates website data (delete / images / featured). */
+  onDataChanged?: () => void;
 }
+
+/** Image values may be URL strings or objects containing a `url` field. */
+const normalizeImageUrls = (assets: any): string[] => {
+  if (!Array.isArray(assets)) return [];
+  return assets
+    .map((img) => (typeof img === "string" ? img : img?.url || ""))
+    .filter(Boolean);
+};
+
 
 const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || "";
 const MAX_FILE_SIZE_MB = 10;
@@ -64,25 +75,31 @@ export const WebsiteVehicleDetailModal = ({
   onClose,
   vehicle,
   onToggleVisibility,
-  isTogglingVisibility = false
+  isTogglingVisibility = false,
+  canManage = true,
+  onDataChanged
 }: WebsiteVehicleDetailModalProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"specs" | "owner">("specs");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isTogglingFeatured, setIsTogglingFeatured] = useState(false);
 
   if (!isOpen || !vehicle) return null;
 
   const isHidden = vehicle.isHidden === true || vehicle.status === "Hidden";
+  const isFeatured = vehicle.featured === true;
 
   // This modal is exclusively used for website-inventory documents.
   // Always update `website-inventory/{vehicle.id}` using the `images` field,
   // regardless of whether the listing originated from a physical car or not.
-  const assets = vehicle.images || vehicle.assets || [];
+  const assets = normalizeImageUrls(vehicle.images || vehicle.assets);
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
+    if (!canManage) return;
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
@@ -117,12 +134,9 @@ export const WebsiteVehicleDetailModal = ({
       }
 
       if (newAssets.length > 0) {
-        const listingRef = doc(db, "website-inventory", vehicle.id);
-        await updateDoc(listingRef, {
-          images: arrayUnion(...newAssets)
-        });
-        const currentAssets = vehicle.images || vehicle.assets || [];
-        await updateWebsiteVehicleImages(vehicle.id, [...currentAssets, ...newAssets]);
+        const previous = normalizeImageUrls(vehicle.images || vehicle.assets);
+        await updateWebsiteVehicleImages(vehicle.id, [...previous, ...newAssets]);
+        onDataChanged?.();
       }
 
       if (failedFiles.length > 0) {
@@ -139,18 +153,46 @@ export const WebsiteVehicleDetailModal = ({
   };
 
   const handleDeleteAsset = async (url: string) => {
+    if (!canManage) return;
     if (!confirm("Are you sure you want to remove this vehicle picture?")) return;
 
     try {
-      const listingRef = doc(db, "website-inventory", vehicle.id);
-      await updateDoc(listingRef, {
-        images: arrayRemove(url)
-      });
-      const currentAssets = vehicle.images || vehicle.assets || [];
+      const currentAssets = normalizeImageUrls(vehicle.images || vehicle.assets);
       const updatedAssets = currentAssets.filter((u: string) => u !== url);
       await updateWebsiteVehicleImages(vehicle.id, updatedAssets);
+      onDataChanged?.();
     } catch (error) {
       console.error("Delete failed", error);
+    }
+  };
+
+  const handleToggleFeatured = async () => {
+    if (!canManage) return;
+    setIsTogglingFeatured(true);
+    try {
+      await updateWebsiteVehicleFeatured(vehicle.id, !isFeatured);
+      onDataChanged?.();
+    } catch (error) {
+      console.error("Failed to toggle featured:", error);
+      setUploadError("Could not update the featured flag on the website.");
+    } finally {
+      setIsTogglingFeatured(false);
+    }
+  };
+
+  const handleDeleteListing = async () => {
+    if (!canManage) return;
+    if (!confirm(`Delete "${vehicle.brandName || vehicle.make} ${vehicle.model}" permanently from the public website? This cannot be undone.`)) return;
+    setIsDeleting(true);
+    try {
+      await removeVehicleFromWebsite(vehicle.id, vehicle.sourceVehicleId);
+      onDataChanged?.();
+      onClose();
+    } catch (error: any) {
+      console.error("Delete failed", error);
+      setUploadError(String(error?.message || "Could not delete the listing from the website project."));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -199,6 +241,26 @@ export const WebsiteVehicleDetailModal = ({
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isTogglingFeatured}
+                onClick={handleToggleFeatured}
+                className={`h-8 text-xs font-bold gap-1.5 rounded-xl transition-all ${
+                  isFeatured
+                    ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
+                    : "bg-white text-slate-500 border-slate-200 hover:bg-amber-50 hover:text-amber-700"
+                }`}
+                title={isFeatured ? "Remove from featured on the website" : "Feature this car on the website"}
+              >
+                {isTogglingFeatured ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Star size={13} fill={isFeatured ? "currentColor" : "none"} />
+                )}
+                <span>{isFeatured ? "Featured" : "Feature"}</span>
+              </Button>
+
               {onToggleVisibility && (
                 <Button
                   size="sm"
@@ -222,6 +284,18 @@ export const WebsiteVehicleDetailModal = ({
                   <span>{isHidden ? "Unhide on Website" : "Hide from Website"}</span>
                 </Button>
               )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteListing}
+                disabled={isDeleting}
+                className="h-8 text-xs font-bold gap-1.5 rounded-xl bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                title="Delete this listing from the public website"
+              >
+                {isDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                <span className="max-sm:hidden">Delete</span>
+              </Button>
 
               <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-slate-200">
                 <X size={18} />

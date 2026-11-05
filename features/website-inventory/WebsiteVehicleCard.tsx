@@ -4,8 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   CarFront, Calendar, Fuel, Settings2, ImageIcon, 
-  ChevronRight, ArrowRight, Eye, EyeOff, Camera, ShieldCheck,
-  Loader2, Globe
+  Camera, Eye, EyeOff, ShieldCheck,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +22,10 @@ export const WebsiteVehicleCard = ({
   onToggleVisibility,
   isTogglingVisibility = false
 }: WebsiteVehicleCardProps) => {
-  const assets = vehicle.images || vehicle.assets || [];
+  // Image values may be URL strings or objects containing a `url` field.
+  const assets = (vehicle.images || vehicle.assets || [])
+    .map((img: any) => (typeof img === "string" ? img : img?.url || ""))
+    .filter(Boolean);
   const brandName = vehicle.make || vehicle.brandName || "Unknown Brand";
   const modelName = vehicle.model || "Unknown Model";
   const registrationNo = vehicle.registrationNo || vehicle.registrationNumber || "Unregistered";

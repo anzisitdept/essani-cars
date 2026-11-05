@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   collection, onSnapshot, query, orderBy, addDoc, updateDoc,
-  doc, serverTimestamp, getDocs, where, arrayUnion
+  doc, serverTimestamp, where, arrayUnion
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -17,18 +17,134 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
 import {
-  Search, CarFront, X, Sparkles, SlidersHorizontal, Globe, LayoutGrid,
-  PlusCircle, Send, CheckCircle2, Loader2, Inbox, Car, Image as ImageIcon, Upload, Trash2, RefreshCw, Eye, EyeOff
+  Search, Globe,
+  PlusCircle, Send, CheckCircle2, Loader2, Inbox, Car, Image as ImageIcon, Upload, Trash2, RefreshCw, EyeOff,
+  Building2, TriangleAlert
 } from "lucide-react";
 import { WebsiteVehicleCard } from "./WebsiteVehicleCard";
 import { WebsiteVehicleDetailModal } from "./WebsiteVehicleDetailModal";
-import { syncVehicleToWebsite, toggleWebsiteVehicleVisibility } from "@/lib/websiteSync";
+import { WebsiteBrandCarManager } from "./WebsiteBrandCarManager";
+import { syncVehicleToWebsite, toggleWebsiteVehicleVisibility, fetchWebsiteTargetInfo, fetchWebsiteStats, fetchWebsiteUsedCarListings, WebsiteTargetInfo } from "@/lib/websiteSync";
 
-type Tab = "published" | "drafts" | "add";
+type Tab = "published" | "drafts" | "newcars" | "add";
 
 export const WebsiteInventoryManager = () => {
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("published");
+
+  // Same page-level permission model as the other dashboard modules:
+  // admin / Super Admin roles, or the "inventory"/"ALL" permission.
+  const canManage =
+    userData?.role === "admin" ||
+    userData?.role === "Super Admin" ||
+    userData?.permissions?.includes("ALL") ||
+    userData?.permissions?.includes("inventory");
+  const deny = () => {
+    alert("You do not have permission to manage the website inventory.");
+    return false;
+  };
+
+  // Public website connection status (target: essani-cars-pk).
+  const [target, setTarget] = useState<WebsiteTargetInfo | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    fetchWebsiteTargetInfo()
+      .then(info => setTarget(info))
+      .catch(err => setTarget({
+        projectId: "essani-cars-pk",
+        serviceAccount: "",
+        configured: false,
+        error: String(err?.message || err),
+        hint: null,
+      }));
+  }, [user]);
+
+  // LIVE counts from the public website project (used cars + brands & new cars).
+  const [websiteStats, setWebsiteStats] = useState<Record<string, any> | null>(null);
+  const loadStats = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await fetchWebsiteStats();
+      if (data?.error) throw new Error(data.error);
+      setWebsiteStats(data);
+    } catch (error: any) {
+      // Connection problems already surface through the red banner above;
+      // the cards fall back to the software-side numbers meanwhile.
+      setWebsiteStats(null);
+    }
+  }, [user]);
+
+  // LIVE used-car listings fetched from the public website project's
+  // `used_cars` collection — what visitors see, synced from the dashboard.
+  const [websiteUsedList, setWebsiteUsedList] = useState<any[] | null>(null);
+  const loadUsedFromWebsite = useCallback(async () => {
+    if (!user) return;
+    try {
+      const listings = await fetchWebsiteUsedCarListings();
+      setWebsiteUsedList(Array.isArray(listings) ? listings : []);
+    } catch (error: any) {
+      // The connection error is already surfaced by the red banner above;
+      // fall back to the software-side list meanwhile.
+      setWebsiteUsedList(null);
+    }
+  }, [user]);
+
+  // One refresh for both website-project reads (stats + used-car listings).
+  const refreshWebsiteData = useCallback(async () => {
+    await Promise.all([loadStats(), loadUsedFromWebsite()]);
+  }, [loadStats, loadUsedFromWebsite]);
+
+  useEffect(() => {
+    loadStats();
+    loadUsedFromWebsite();
+  }, [user, loadStats, loadUsedFromWebsite]);
+
+  /**
+   * Maps a website-project listing (make, brand_name, images, status
+   * "published"|"draft") onto the dashboard's vehicle shape the card,
+   * filters and detail modal already expect.
+   */
+  const mapWebsiteListingToDashboard = (w: any) => {
+    const isDraft = w.status === "draft";
+    const isSold = w.isSold === true;
+    const images = Array.isArray(w.images)
+      ? w.images.map((i: any) => (typeof i === "string" ? i : i?.url || "")).filter(Boolean)
+      : (typeof w.cover_image === "string" && w.cover_image ? [w.cover_image] : []);
+    return {
+      ...w,
+      id: w.id,
+      brandName: w.brand_name || w.make || "",
+      make: w.make || w.brand_name || "",
+      model: w.model || "",
+      variant: w.variant || "",
+      year: w.year ?? "",
+      modelYear: w.year ?? "",
+      color: w.color || "",
+      mileage: w.mileage ?? "",
+      vehicleCC: w.engine_cc || "",
+      bodyType: w.body_type || w.bodyType || "",
+      fuelType: w.fuelType || w.fuel_type || "",
+      transmission: w.transmission || "",
+      city: w.city || "",
+      barcode: w.barcode || "",
+      chassisNo: w.chassis_no ?? w.chassisNo ?? "",
+      chassisNumber: w.chassis_no ?? w.chassisNo ?? "",
+      registrationNo: w.registration_no ?? w.registrationNo ?? "",
+      registrationNumber: w.registration_no ?? w.registrationNo ?? "",
+      engineNo: w.engine_no ?? w.engineNo ?? "",
+      engineNumber: w.engine_no ?? w.engineNo ?? "",
+      assets: images,
+      images,
+      // Dashboard-facing status words the cards/filters already know.
+      status: isSold ? "Sold" : isDraft ? "Hidden" : "Available",
+      isHidden: isDraft,
+      askingPrice: w.price ?? w.askingPrice ?? null,
+      price: w.price ?? null,
+      sourceVehicleId: w.sourceVehicleId ?? null,
+      featured: w.featured === true,
+      type: w.type || "Website Only",
+    };
+  };
 
   // Published (website-inventory collection)
   const [publishedVehicles, setPublishedVehicles] = useState<any[]>([]);
@@ -41,6 +157,7 @@ export const WebsiteInventoryManager = () => {
   const [viewingDraftVehicle, setViewingDraftVehicle] = useState<any | null>(null);
 
   const handleDeleteDraftImage = async (vehicleId: string, imageUrl: string) => {
+    if (!canManage && !deny()) return;
     if (!confirm("Are you sure you want to delete this image?")) return;
     try {
       const vehicle = draftVehicles.find(v => v.id === vehicleId);
@@ -58,6 +175,7 @@ export const WebsiteInventoryManager = () => {
 
   const handleDraftImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, vehicleId: string) => {
     const files = e.target.files;
+    if (!canManage && !deny()) return;
     if (!files || files.length === 0) return;
 
     setUploadingDraftId(vehicleId);
@@ -102,6 +220,8 @@ export const WebsiteInventoryManager = () => {
   const [publishingVehicle, setPublishingVehicle] = useState<any | null>(null);
   const [publishAskingPrice, setPublishAskingPrice] = useState("");
   const [publishDescription, setPublishDescription] = useState("");
+  const [publishMileage, setPublishMileage] = useState("");
+  const [publishFeatures, setPublishFeatures] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishMessage, setPublishMessage] = useState("");
 
@@ -110,7 +230,7 @@ export const WebsiteInventoryManager = () => {
     make: "", model: "", variant: "", year: "", color: "",
     fuelType: "", transmission: "", city: "Sukkur",
     engineNo: "", chassisNo: "", registrationNo: "",
-    askingPrice: "", description: ""
+    askingPrice: "", description: "", mileage: "", features: "", imageUrls: ""
   });
   const [isAddingListing, setIsAddingListing] = useState(false);
   const [addMessage, setAddMessage] = useState("");
@@ -130,10 +250,12 @@ export const WebsiteInventoryManager = () => {
   const [togglingVehicleId, setTogglingVehicleId] = useState<string | null>(null);
 
   const handleToggleVisibility = async (vehicle: any) => {
+    if (!canManage && !deny()) return;
     const isCurrentlyHidden = vehicle.isHidden === true || vehicle.status === "Hidden";
     setTogglingVehicleId(vehicle.id);
     try {
       await toggleWebsiteVehicleVisibility(vehicle.id, isCurrentlyHidden);
+      refreshWebsiteData();
     } catch (err) {
       console.error("Failed to toggle visibility:", err);
       alert("Failed to update vehicle visibility.");
@@ -206,19 +328,26 @@ export const WebsiteInventoryManager = () => {
 
   // ------- Filtered & Derived -------
 
+  // The Published tab shows the LIVE list from the website project when it's
+  // reachable; the software-side snapshot is the fallback.
+  const displayVehicles = useMemo(
+    () => (websiteUsedList === null ? publishedVehicles : websiteUsedList.map(mapWebsiteListingToDashboard)),
+    [websiteUsedList, publishedVehicles]
+  );
+
   const viewingVehicle = useMemo(() => {
     if (!selectedVehicleId) return null;
-    return publishedVehicles.find(v => v.id === selectedVehicleId) || null;
-  }, [selectedVehicleId, publishedVehicles]);
+    return displayVehicles.find(v => v.id === selectedVehicleId) || null;
+  }, [selectedVehicleId, displayVehicles]);
 
   const uniqueBrands = useMemo(() => {
-    const brands = new Set(publishedVehicles.map(v => v.make || v.brandName).filter(Boolean));
+    const brands = new Set(displayVehicles.map(v => v.make || v.brandName).filter(Boolean));
     return Array.from(brands).sort() as string[];
-  }, [publishedVehicles]);
+  }, [displayVehicles]);
 
   const filteredPublished = useMemo(() => {
     const lower = searchTerm.toLowerCase();
-    return publishedVehicles.filter(v => {
+    return displayVehicles.filter(v => {
       if (v.status === "Sold") return false;
       const isHidden = v.isHidden === true || v.status === "Hidden";
       if (visibilityFilter === "LIVE" && isHidden) return false;
@@ -226,6 +355,7 @@ export const WebsiteInventoryManager = () => {
 
       const matchesSearch = !searchTerm ||
         v.make?.toLowerCase().includes(lower) ||
+        v.brandName?.toLowerCase().includes(lower) ||
         v.model?.toLowerCase().includes(lower) ||
         v.registrationNo?.toLowerCase().includes(lower) ||
         v.chassisNo?.toLowerCase().includes(lower) ||
@@ -233,7 +363,7 @@ export const WebsiteInventoryManager = () => {
       const matchesBrand = brandFilter === "ALL" || (v.make || v.brandName) === brandFilter;
       return matchesSearch && matchesBrand;
     });
-  }, [publishedVehicles, searchTerm, brandFilter, visibilityFilter]);
+  }, [displayVehicles, searchTerm, brandFilter, visibilityFilter]);
 
   const filteredDrafts = useMemo(() => {
     const lower = searchTerm.toLowerCase();
@@ -252,11 +382,14 @@ export const WebsiteInventoryManager = () => {
     setPublishingVehicle(vehicle);
     setPublishAskingPrice(vehicle.purchasePrice ? String(vehicle.purchasePrice) : "");
     setPublishDescription(`${vehicle.brandName} ${vehicle.model} ${vehicle.modelYear || vehicle.year} - ${vehicle.color}`);
+    setPublishMileage(vehicle.mileage || "");
+    setPublishFeatures(vehicle.features || "");
     setPublishMessage("");
   };
 
   const handlePublish = async () => {
     if (!publishingVehicle || !user) return;
+    if (!canManage && !deny()) return;
     if (!publishAskingPrice || parseFloat(publishAskingPrice) <= 0) {
       setPublishMessage("Error: Please enter a valid asking price.");
       return;
@@ -280,9 +413,23 @@ export const WebsiteInventoryManager = () => {
         engineNo: publishingVehicle.engineNumber,
         chassisNo: publishingVehicle.chassisNumber,
         registrationNo: publishingVehicle.registrationNumber || "",
+        mileage: publishMileage,
+        body_type: publishingVehicle.bodyType || publishingVehicle.body_type || "",
+        engineCC: publishingVehicle.vehicleCC || "",
+        city: publishingVehicle.city || "",
+        specifications: Object.fromEntries(
+          Object.entries({
+            "Engine": publishingVehicle.vehicleCC ? `${publishingVehicle.vehicleCC} CC` : "",
+            "Drive": publishingVehicle.driveType || "",
+            "Color": publishingVehicle.color || "",
+            "Transmission": publishingVehicle.transmission || "",
+            "Fuel": publishingVehicle.fuelType || "",
+          }).filter(([, v]) => Boolean(v))
+        ),
         askingPrice: parseFloat(publishAskingPrice),
         price: parseFloat(publishAskingPrice),
         images: publishingVehicle.assets || [],
+        features: publishFeatures,
         description: publishDescription,
         status: "Available",
         barcode: publishingVehicle.barcode,
@@ -293,8 +440,12 @@ export const WebsiteInventoryManager = () => {
       // 1. Create website-inventory document in accounts database
       const docRef = await addDoc(collection(db, "website-inventory"), listingPayload);
 
-      // 2. Sync to caruzen-motors-website public database
-      await syncVehicleToWebsite(docRef.id, listingPayload);
+      // 2. Sync to the essani-cars-pk public website project (server-side)
+      const syncResult = await syncVehicleToWebsite(docRef.id, listingPayload);
+      if (!syncResult.success) {
+        setPublishMessage("Error: Saved locally, but could not sync to the website project. Check the connection error at the top and try Sync to Website DB.");
+        return;
+      }
 
       // 3. Mark source vehicle as published
       await updateDoc(doc(db, "cars", publishingVehicle.id), {
@@ -302,7 +453,8 @@ export const WebsiteInventoryManager = () => {
         publishedAt: serverTimestamp()
       });
 
-      setPublishMessage("Success: Vehicle published to website & synchronized with online database!");
+      setPublishMessage("Success: Vehicle published to the public website!");
+      refreshWebsiteData();
       setTimeout(() => {
         setPublishingVehicle(null);
         setPublishMessage("");
@@ -321,6 +473,7 @@ export const WebsiteInventoryManager = () => {
   const handleAddListing = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!canManage && !deny()) return;
 
     if (!newListing.make || !newListing.model || !newListing.year || !newListing.askingPrice) {
       setAddMessage("Error: Make, Model, Year, and Asking Price are required.");
@@ -346,9 +499,11 @@ export const WebsiteInventoryManager = () => {
         engineNo: newListing.engineNo,
         chassisNo: newListing.chassisNo,
         registrationNo: newListing.registrationNo,
+        mileage: newListing.mileage,
+        features: newListing.features,
         askingPrice: parseFloat(newListing.askingPrice),
         price: parseFloat(newListing.askingPrice),
-        images: [],
+        images: newListing.imageUrls.split("\n").map((u: string) => u.trim()).filter(Boolean),
         description: newListing.description,
         status: "Available",
         publishedAt: serverTimestamp(),
@@ -358,15 +513,21 @@ export const WebsiteInventoryManager = () => {
       // 1. Save to accounts DB
       const docRef = await addDoc(collection(db, "website-inventory"), listingPayload);
 
-      // 2. Sync to website DB
-      await syncVehicleToWebsite(docRef.id, listingPayload);
+      // 2. Sync to the essani-cars-pk website project (server-side Admin)
+      const syncResult = await syncVehicleToWebsite(docRef.id, listingPayload);
+      if (!syncResult.success) {
+        setAddMessage("Error: Listing saved locally but not synced to the website project. Check the connection error above.");
+        setIsAddingListing(false);
+        return;
+      }
 
-      setAddMessage("Success: Listing added and synced with website database!");
+      setAddMessage("Success: Listing added and synced with the public website project!");
+      refreshWebsiteData();
       setNewListing({
         make: "", model: "", variant: "", year: "", color: "",
         fuelType: "", transmission: "", city: "Sukkur",
         engineNo: "", chassisNo: "", registrationNo: "",
-        askingPrice: "", description: ""
+        askingPrice: "", description: "", mileage: "", features: "", imageUrls: ""
       });
       setSelectedBrandId("");
     } catch (err) {
@@ -382,6 +543,7 @@ export const WebsiteInventoryManager = () => {
   const [syncStatusMsg, setSyncStatusMsg] = useState("");
 
   const handleSyncAllToWebsite = async () => {
+    if (!canManage && !deny()) return;
     if (publishedVehicles.length === 0) {
       alert("No published vehicles to sync.");
       return;
@@ -393,25 +555,51 @@ export const WebsiteInventoryManager = () => {
 
     try {
       let syncedCount = 0;
+      let failedCount = 0;
       for (const vehicle of publishedVehicles) {
-        await syncVehicleToWebsite(vehicle.id, vehicle);
-        syncedCount++;
+        const result = await syncVehicleToWebsite(vehicle.id, vehicle);
+        if (result.success) syncedCount++;
+        else failedCount++;
       }
-      setSyncStatusMsg(`Successfully synced ${syncedCount} vehicles to the website database!`);
-      setTimeout(() => setSyncStatusMsg(""), 4000);
+      if (failedCount > 0) {
+        setSyncStatusMsg(
+          `Synced ${syncedCount} vehicle(s); ${failedCount} failed. Check the connection error at the top and try again.`
+        );
+      } else {
+        setSyncStatusMsg(`Successfully synced ${syncedCount} vehicles to the public website!`);
+      }
+      setTimeout(() => setSyncStatusMsg(""), 6000);
     } catch (error) {
       console.error("Failed to sync all vehicles:", error);
       alert("An error occurred while syncing vehicles.");
     } finally {
       setIsSyncingAll(false);
+      refreshWebsiteData();
     }
   };
 
   // ------- Tabs -------
 
+  // LIVE totals from the public website project (used cars + brands & new cars).
+  const usedStats: Record<string, any> | null = websiteStats?.usedCars || null;
+  const newStats: Record<string, any> | null = websiteStats?.newCars || null;
+  const liveTotals: {
+    published: number;
+    online: number;
+    hidden: number;
+  } | null = websiteStats ? {
+    // Everything listed on the site: live/sold used + every new car.
+    published: (usedStats?.live || 0) + (usedStats?.sold || 0) + (newStats?.total || 0),
+    // Actually reachable by visitors right now: live used + non-draft new cars.
+    online: (usedStats?.live || 0) + (newStats?.live || 0),
+    // Drafts / hidden / sold used + draft new cars.
+    hidden: (usedStats?.hidden || 0) + (newStats?.draft || 0),
+  } : null;
+
   const tabs: { key: Tab; label: string; count?: number; icon: any }[] = [
-    { key: "published", label: "Published Inventory", count: publishedVehicles.length, icon: Globe },
+    { key: "published", label: "Used Cars", count: displayVehicles.length, icon: Globe },
     { key: "drafts", label: "Awaiting Publication", count: draftVehicles.length, icon: Inbox },
+    { key: "newcars", label: "Brands & New Cars", count: newStats ? newStats.total : undefined, icon: Building2 },
     { key: "add", label: "Add Web Listing", icon: PlusCircle },
   ];
 
@@ -419,48 +607,87 @@ export const WebsiteInventoryManager = () => {
     <>
       <div className="space-y-6">
 
-        {/* Stats Row */}
+        {/* Connection problems (only shown when the website project is unreachable) */}
+        {target && !target.configured && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+            <div className="flex items-start gap-2 text-red-800">
+              <TriangleAlert size={16} className="shrink-0 mt-0.5" />
+              <div className="text-xs space-y-1">
+                <p className="font-bold">Public website connection is not ready — publishing brands &amp; used cars to essani-cars-pk is disabled until this is fixed.</p>
+                <p className="font-semibold">{target.error}</p>
+                {target.hint && <p className="text-red-700/90 whitespace-pre-line">{target.hint}</p>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stats Row — LIVE numbers from the public website project */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-5 border-slate-100 flex items-center justify-between shadow-sm bg-gradient-to-tr from-blue-50 to-white">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Published</p>
-              <h3 className="text-2xl font-extrabold text-slate-900 mt-1">
-                {publishedVehicles.filter(v => v.status !== "Sold").length}
-              </h3>
-            </div>
-            <div className="p-3 bg-blue-100/60 rounded-xl text-blue-600">
-              <Globe size={22} />
-            </div>
-          </Card>
-          <Card className="p-5 border-slate-100 flex items-center justify-between shadow-sm bg-gradient-to-tr from-emerald-50 to-white">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Live Online</p>
-              <h3 className="text-2xl font-extrabold text-emerald-900 mt-1">
-                {publishedVehicles.filter(v => (v.status === "Available" || !v.status) && !v.isHidden).length}
-              </h3>
-            </div>
-            <div className="p-3 bg-emerald-100/60 rounded-xl text-emerald-600">
-              <CheckCircle2 size={22} />
+          <Card className="p-5 border-slate-100 shadow-sm bg-gradient-to-tr from-blue-50 to-white">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Published</p>
+                <h3 className="text-2xl font-extrabold text-slate-900 mt-1">
+                  {liveTotals ? liveTotals.published : publishedVehicles.filter(v => v.status !== "Sold").length}
+                </h3>
+                {liveTotals && (
+                  <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                    Used {(usedStats?.live || 0) + (usedStats?.sold || 0)} • New {newStats?.total || 0}
+                    {typeof newStats?.brands === "number" ? ` (${newStats.brands} brands)` : ""}
+                  </p>
+                )}
+              </div>
+              <div className="p-3 bg-blue-100/60 rounded-xl text-blue-600 shrink-0">
+                <Globe size={22} />
+              </div>
             </div>
           </Card>
-          <Card className="p-5 border-slate-100 flex items-center justify-between shadow-sm bg-gradient-to-tr from-orange-50 to-white">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Hidden from Web</p>
-              <h3 className="text-2xl font-extrabold text-amber-700 mt-1">
-                {publishedVehicles.filter(v => v.status === "Hidden" || v.isHidden === true).length}
-              </h3>
-            </div>
-            <div className="p-3 bg-amber-100/60 rounded-xl text-amber-600">
-              <EyeOff size={22} />
+          <Card className="p-5 border-slate-100 shadow-sm bg-gradient-to-tr from-emerald-50 to-white">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Live Online</p>
+                <h3 className="text-2xl font-extrabold text-emerald-900 mt-1">
+                  {liveTotals ? liveTotals.online : publishedVehicles.filter(v => (v.status === "Available" || !v.status) && !v.isHidden).length}
+                </h3>
+                {liveTotals && (
+                  <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                    Used {usedStats?.live || 0} • New {newStats?.live || 0}
+                  </p>
+                )}
+              </div>
+              <div className="p-3 bg-emerald-100/60 rounded-xl text-emerald-600 shrink-0">
+                <CheckCircle2 size={22} />
+              </div>
             </div>
           </Card>
-          <Card className="p-5 border-slate-100 flex items-center justify-between shadow-sm bg-gradient-to-tr from-amber-50 to-white">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Awaiting Publication</p>
-              <h3 className="text-2xl font-extrabold text-amber-800 mt-1">{draftVehicles.length}</h3>
+          <Card className="p-5 border-slate-100 shadow-sm bg-gradient-to-tr from-orange-50 to-white">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Hidden from Web</p>
+                <h3 className="text-2xl font-extrabold text-amber-700 mt-1">
+                  {liveTotals ? liveTotals.hidden : publishedVehicles.filter(v => v.status === "Hidden" || v.isHidden === true).length}
+                </h3>
+                {liveTotals && (
+                  <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                    Used {usedStats?.hidden || 0} • New {newStats?.draft || 0}
+                  </p>
+                )}
+              </div>
+              <div className="p-3 bg-amber-100/60 rounded-xl text-amber-600 shrink-0">
+                <EyeOff size={22} />
+              </div>
             </div>
-            <div className="p-3 bg-amber-100/60 rounded-xl text-amber-600">
-              <Inbox size={22} />
+          </Card>
+          <Card className="p-5 border-slate-100 shadow-sm bg-gradient-to-tr from-amber-50 to-white">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Awaiting Publication</p>
+                <h3 className="text-2xl font-extrabold text-amber-800 mt-1">{draftVehicles.length}</h3>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">from your showroom listings</p>
+              </div>
+              <div className="p-3 bg-amber-100/60 rounded-xl text-amber-600 shrink-0">
+                <Inbox size={22} />
+              </div>
             </div>
           </Card>
         </div>
@@ -470,7 +697,7 @@ export const WebsiteInventoryManager = () => {
           {tabs.map(tab => (
             <button
               key={tab.key}
-              onClick={() => { setActiveTab(tab.key); setSearchTerm(""); }}
+              onClick={() => { setActiveTab(tab.key); setSearchTerm(""); if (tab.key === "newcars") refreshWebsiteData(); }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap
                 ${activeTab === tab.key
                   ? "bg-white text-slate-900 shadow-sm"
@@ -526,7 +753,7 @@ export const WebsiteInventoryManager = () => {
                   </SelectContent>
                 </Select>
                 <Badge variant="outline" className="flex items-center px-3 py-2 text-xs font-bold text-slate-600 border-slate-200 bg-white">
-                  {filteredPublished.length} of {publishedVehicles.length}
+                  {filteredPublished.length} of {displayVehicles.length}
                 </Badge>
                 <Button
                   onClick={handleSyncAllToWebsite}
@@ -667,6 +894,11 @@ export const WebsiteInventoryManager = () => {
               )}
             </div>
           </div>
+        )}
+
+        {/* ---------- BRANDS & NEW CARS TAB ---------- */}
+        {activeTab === "newcars" && (
+          <WebsiteBrandCarManager onDataChanged={loadStats} />
         )}
 
         {/* ---------- ADD LISTING TAB ---------- */}
@@ -845,6 +1077,28 @@ export const WebsiteInventoryManager = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Mileage</label>
+                  <Input value={newListing.mileage} onChange={e => setNewListing(p => ({ ...p, mileage: e.target.value }))} placeholder="e.g. 45,000 km" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Features (comma separated)</label>
+                  <Input value={newListing.features} onChange={e => setNewListing(p => ({ ...p, features: e.target.value }))} placeholder="e.g. AC, Sunroof, Alloy Rims" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-500">Image URLs (one per line)</label>
+                <textarea
+                  className="min-h-20 w-full rounded-md border border-slate-200 p-2 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  value={newListing.imageUrls}
+                  onChange={e => setNewListing(p => ({ ...p, imageUrls: e.target.value }))}
+                  placeholder={"https://i.ibb.co/.../front.jpg\nhttps://i.ibb.co/.../side.jpg"}
+                />
+                <p className="text-[10px] text-slate-400">First image is used as the cover. You can upload more later from the listing&apos;s detail screen.</p>
+              </div>
+
               <div className="pt-2 flex justify-end gap-3 border-t border-slate-100">
                 <Button type="submit" className="bg-blue-600 hover:bg-blue-700 gap-2" disabled={isAddingListing}>
                   {isAddingListing ? <><Loader2 size={14} className="animate-spin" />Adding...</> : <><Globe size={14} />Publish Listing</>}
@@ -917,6 +1171,25 @@ export const WebsiteInventoryManager = () => {
                 placeholder="Short description shown on website..."
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-500">Mileage</label>
+                <Input
+                  value={publishMileage}
+                  onChange={e => setPublishMileage(e.target.value)}
+                  placeholder="e.g. 45,000 km"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-500">Features (comma separated)</label>
+                <Input
+                  value={publishFeatures}
+                  onChange={e => setPublishFeatures(e.target.value)}
+                  placeholder="e.g. AC, Sunroof, Alloy Rims"
+                />
+              </div>
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
@@ -974,6 +1247,8 @@ export const WebsiteInventoryManager = () => {
         vehicle={viewingVehicle}
         onToggleVisibility={handleToggleVisibility}
         isTogglingVisibility={viewingVehicle ? togglingVehicleId === viewingVehicle.id : false}
+        canManage={canManage}
+        onDataChanged={refreshWebsiteData}
       />
     </>
   );
