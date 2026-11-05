@@ -1,8 +1,9 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 
+// NOTE: typed as `undefined`-prone simply so `Boolean()` sees presence.
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -12,10 +13,27 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const auth: Auth = getAuth(app);
-export const db: Firestore = getFirestore(app);
-export const storage: FirebaseStorage = getStorage(app);
+/**
+ * True when the public Firebase keys are present in this environment.
+ * Deployments MUST set the NEXT_PUBLIC_FIREBASE_* variables (see
+ * .env.example). When they are missing we skip initialization instead of
+ * crashing every import with auth/invalid-api-key during static prerender.
+ */
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId
+);
+
+let app: FirebaseApp | null = null;
+if (isFirebaseConfigured) {
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+}
+
+// Cast keeps every existing consumer's `Auth`/`Firestore` type intact; with a
+// missing config these are null at runtime and the auth provider surfaces a
+// clear configuration error instead of the build failing.
+export const auth: Auth = (app ? getAuth(app) : null) as unknown as Auth;
+export const db: Firestore = (app ? getFirestore(app) : null) as unknown as Firestore;
+export const storage: FirebaseStorage = (app ? getStorage(app) : null) as unknown as FirebaseStorage;
 
 // Public Website Firebase Project (caruzen-motors-website)
 const websiteFirebaseConfig = {
@@ -32,4 +50,4 @@ const websiteAppName = "caruzen-motors-website";
 const websiteApp = getApps().find(a => a.name === websiteAppName)
   || initializeApp(websiteFirebaseConfig, websiteAppName);
 
-export const websiteDb: Firestore = getFirestore(websiteApp);
+export const websiteDb: Firestore = getFirestore(websiteApp);

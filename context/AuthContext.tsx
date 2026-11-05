@@ -10,7 +10,7 @@ import {
   UserCredential
 } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, isFirebaseConfigured } from "@/lib/firebase";
 
 // Fix for: Property '__initial_auth_token' does not exist on type 'Window'
 declare global {
@@ -77,6 +77,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    // Missing public Firebase configuration (deploy without env vars):
+    // finish loading with no user and log a clear, actionable error
+    // instead of crashing on auth/invalid-api-key.
+    if (!isFirebaseConfigured || !auth || !db) {
+      console.error(
+        "Firebase client configuration is missing. Set the NEXT_PUBLIC_FIREBASE_* " +
+        "environment variables on this environment (see .env.example) and redeploy."
+      );
+      setLoading(false);
+      return;
+    }
+
     // Check for custom token if provided by server context
     if (typeof window !== 'undefined' && window.__initial_auth_token) {
       signInWithCustomToken(auth, window.__initial_auth_token).catch(console.error);
@@ -169,8 +181,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const login = (email: string, password: string) => signInWithEmailAndPassword(auth, email, password);
-  const logout = () => signOut(auth);
+  const login = (email: string, password: string) => {
+    if (!auth) {
+      return Promise.reject(
+        new Error(
+          "Sign-in is unavailable: the environment is missing its Firebase configuration " +
+          "(NEXT_PUBLIC_FIREBASE_* variables). Add them on the server and redeploy."
+        )
+      );
+    }
+    return signInWithEmailAndPassword(auth, email, password);
+  };
+  const logout = async () => {
+    if (!auth) return;
+    await signOut(auth);
+  };
 
   return (
     <AuthContext.Provider value={{ user, userData, loading, login, logout }}>
