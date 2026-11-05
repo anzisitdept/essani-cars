@@ -19,9 +19,9 @@
  * contains the placeholder names).
  */
 
-import { App, initializeApp, getApps, cert } from "firebase-admin/app";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
-import { getAuth, Auth } from "firebase-admin/auth";
+import type { App } from "firebase-admin/app";
+import type { Auth } from "firebase-admin/auth";
+import type { Firestore } from "firebase-admin/firestore";
 
 /** Named app so this connection cannot replace/conflict with any other app. */
 const WEBSITE_ADMIN_APP_NAME = "essani-cars-website-admin";
@@ -142,6 +142,34 @@ export function describeWebsiteFirebaseConfig(): WebsiteFirebaseConfigStatus {
 }
 
 /**
+ * Loads the firebase-admin SDK pieces lazily (inside the functions that need
+ * them) so that a missing/incompatible install on a host surfaces an
+ * actionable error message from the routes instead of crashing the module at
+ * import time and hiding the cause behind a bare HTTP 500.
+ */
+function loadAdminSdk() {
+  try {
+    const appModule = require("firebase-admin/app");
+    const fireModule = require("firebase-admin/firestore");
+    const authModule = require("firebase-admin/auth");
+    return {
+      initializeApp: appModule.initializeApp as typeof import("firebase-admin/app").initializeApp,
+      getApps: appModule.getApps as typeof import("firebase-admin/app").getApps,
+      cert: appModule.cert as typeof import("firebase-admin/app").cert,
+      getFirestore: fireModule.getFirestore as typeof import("firebase-admin/firestore").getFirestore,
+      getAuth: authModule.getAuth as typeof import("firebase-admin/auth").getAuth,
+    };
+  } catch (error: any) {
+    throw new Error(
+      "[Website Firebase] The server SDK (firebase-admin) failed to load on this server. " +
+      "Pull the latest code, run `npm install` on the server with Node.js 20+ " +
+      "(firebase-admin 14 requires Node 20) and restart the app. " +
+      `Detail: ${String(error?.message || error).slice(0, 300)}`
+    );
+  }
+}
+
+/**
  * Lazily creates (a cached instance of) the named Admin app + Firestore for
  * the public website project. Throws with a clear message when credentials
  * are missing or invalid — never when the site env is simply unset.
@@ -151,6 +179,7 @@ function getWebsiteAdminApp(): App {
   if (!status.ok) {
     throw new Error(`[Website Firebase] ${status.error}`);
   }
+  const { getApps, initializeApp, cert } = loadAdminSdk();
   const existing = getApps().find((a) => a.name === WEBSITE_ADMIN_APP_NAME);
   if (existing) return existing;
 
@@ -190,6 +219,7 @@ function getWebsiteAdminApp(): App {
 /** Admin Firestore client for the `essani-cars-pk` website project. */
 export function getWebsiteFirestore(): Firestore {
   const app = getWebsiteAdminApp();
+  const { getFirestore } = loadAdminSdk();
   const databaseId = getWebsiteDatabaseId();
   if (databaseId === "(default)") {
     return getFirestore(app);
@@ -200,5 +230,6 @@ export function getWebsiteFirestore(): Firestore {
 
 /** Admin Auth client for the `essani-cars-pk` website project (registered users). */
 export function getWebsiteAuth(): Auth {
+  const { getAuth } = loadAdminSdk();
   return getAuth(getWebsiteAdminApp());
 }

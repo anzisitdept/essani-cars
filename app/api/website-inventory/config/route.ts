@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { describeWebsiteFirebaseConfig, getWebsiteDatabaseId } from "@/lib/websiteFirebaseAdmin";
 import { authenticateWebsiteApiRequest } from "@/lib/websiteServerAuth";
+import { websiteApiError } from "@/lib/websiteApiHelpers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,14 +22,18 @@ export async function GET(request: Request) {
     );
   }
 
-  const status = describeWebsiteFirebaseConfig();
-  return NextResponse.json({
-    target: "Essani Cars public website",
-    projectId: status.projectId,
-    databaseId: getWebsiteDatabaseId(),
-    serviceAccount: status.clientEmailMasked,
-    configured: status.ok,
-    error: status.error || null,
-    hint: status.hint || null,
-  });
+  try {
+    const status = describeWebsiteFirebaseConfig();
+    return NextResponse.json({
+      target: "Essani Cars public website",
+      projectId: status.projectId,
+      databaseId: getWebsiteDatabaseId(),
+      serviceAccount: status.clientEmailMasked,
+      configured: status.ok,
+      error: status.error || null,
+      hint: status.hint || null,
+    });
+  } catch (error) {
+    return websiteApiError(error, "GET /api/website-inventory/config");
+  }
 }

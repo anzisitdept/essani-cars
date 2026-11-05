@@ -14,11 +14,26 @@
  * verify the caller's identity (see `websiteServerAuth.ts`).
  */
 
-import {
-  DocumentData,
-  FieldValue,
-} from "firebase-admin/firestore";
+import type { DocumentData } from "firebase-admin/firestore";
 import { getWebsiteFirestore } from "./websiteFirebaseAdmin";
+
+/**
+ * FieldValue.serverTimestamp(), resolved lazily so a host without a working
+ * firebase-admin install reports an actionable error from the routes rather
+ * than a bare module-load 500.
+ */
+function fireTimestamp() {
+  try {
+    const { FieldValue } = require("firebase-admin/firestore");
+    return FieldValue.serverTimestamp();
+  } catch (error: any) {
+    throw new Error(
+      "[Website Firestore] The server SDK (firebase-admin) failed to load on this server. " +
+      "Pull the latest code, run `npm install` with Node.js 20+ and restart. " +
+      `Detail: ${String(error?.message || error).slice(0, 300)}`
+    );
+  }
+}
 
 export type WebsiteStatus = "published" | "draft";
 
@@ -96,7 +111,7 @@ function withTimestamps(
   data: Record<string, unknown>,
   isNew: boolean,
 ): Record<string, unknown> {
-  const now = FieldValue.serverTimestamp();
+  const now = fireTimestamp();
   if (isNew) {
     return { ...data, createdAt: data.createdAt || now, updatedAt: now };
   }
@@ -222,7 +237,7 @@ export async function reorderWebsiteBrands(orderedSlugs: string[]) {
       {
         sort_order: index,
         sortOrder: index,
-        updatedAt: FieldValue.serverTimestamp(),
+        updatedAt: fireTimestamp(),
       },
       { merge: true },
     );
@@ -318,7 +333,7 @@ export async function updateWebsiteBrandCarCount(brandSlug: string): Promise<num
   // The public website reads `total_cars`; older contract fields kept in sync
   // too so any reader of either naming finds the same number.
   await db.collection("new_cars").doc(brandSlug).set(
-    { total_cars: count, totalCars: count, car_count: count, carCount: count, updatedAt: FieldValue.serverTimestamp() },
+    { total_cars: count, totalCars: count, car_count: count, carCount: count, updatedAt: fireTimestamp() },
     { merge: true },
   );
   return count;
@@ -684,7 +699,7 @@ export async function patchWebsiteUsedCar(
 export async function setWebsiteUsedCarStatus(listingId: string, status: WebsiteStatus) {
   const db = getWebsiteFirestore();
   await db.collection("used_cars").doc(listingId).set(
-    { status, isHidden: status === "draft", updatedAt: FieldValue.serverTimestamp() },
+    { status, isHidden: status === "draft", updatedAt: fireTimestamp() },
     { merge: true },
   );
   return true;
@@ -791,7 +806,7 @@ export async function setWebsiteQueryStatus(id: string, status: string) {
   const trimmed = String(status || "").trim().toLowerCase();
   if (!trimmed) throw new Error("A non-empty status is required.");
   await db.collection("queries").doc(id).set(
-    { status: trimmed, updatedAt: FieldValue.serverTimestamp() },
+    { status: trimmed, updatedAt: fireTimestamp() },
     { merge: true },
   );
   return true;
