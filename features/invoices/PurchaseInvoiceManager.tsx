@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { SearchSelector } from "@/components/ui/SearchSelector";
 import { CurrencyConverterFields } from "@/components/shared/CurrencyConverterFields";
+import { canReversePurchase, purchaseOutstanding } from "@/lib/purchasePayments";
 import { VehicleSelector } from "@/features/inventory/VehicleSelector";
 import { ClientSelector } from "@/features/registry/ClientSelector";
 
@@ -85,14 +86,18 @@ export const PurchaseInvoiceManager = () => {
         const carRef = doc(db, "cars", car.id);
         const carSnap = await tx.get(carRef);
         if (!carSnap.exists()) throw new Error("Vehicle record not found.");
+        if (!canReversePurchase(carSnap.data())) throw new Error("Reverse the invoice's linked payments before reversing this purchase.");
 
         let payAccRef: any = null;
         let payAccSnap: any = null;
 
-        if (car.isPaid && car.paymentAccountId) {
+        if ((carSnap.data().purchasePaidAtCreation ?? carSnap.data().isPaid) && car.paymentAccountId) {
           payAccRef = doc(db, "accounts", car.paymentAccountId);
           payAccSnap = await tx.get(payAccRef);
-        } else if (!car.isPaid && car.sellerClientId) {
+        } else if (!(carSnap.data().purchasePaidAtCreation ?? carSnap.data().isPaid) && car.sellerAccountId) {
+          payAccRef = doc(db, "accounts", car.sellerAccountId);
+          payAccSnap = await tx.get(payAccRef);
+        } else if (!(carSnap.data().purchasePaidAtCreation ?? carSnap.data().isPaid) && car.sellerClientId) {
           const clientRef = doc(db, "clients", car.sellerClientId);
           const clientSnap = await tx.get(clientRef);
           if (clientSnap.exists() && clientSnap.data().accountId) {
@@ -108,6 +113,7 @@ export const PurchaseInvoiceManager = () => {
         }
 
         // WRITE PHASE
+        if (payAccRef && !payAccSnap?.exists()) throw new Error("Restore the missing payment/seller ledger before reversing this purchase.");
         voucherRefs.forEach(ref => tx.delete(ref));
 
         if (payAccRef && payAccSnap?.exists()) {
@@ -127,6 +133,9 @@ export const PurchaseInvoiceManager = () => {
         tx.update(carRef, {
           purchasePrice: 0,
           isPaid: false,
+          purchasePaidAtCreation: false,
+          purchasePaidAmount: 0,
+          sellerAccountId: null,
           paymentAccountId: null,
           sellerClientId: null,
           sellerClientName: "",
@@ -240,6 +249,7 @@ export const PurchaseInvoiceManager = () => {
     }
     if (priceVal <= 0) { setMessage("Error: Please enter a valid purchase price."); return; }
     if (isPaid && !paymentAccountId) { setMessage("Error: Please select a payment account."); return; }
+    if (!isPaid && !selectedSellerId) { setMessage("Error: Please select a seller for an unpaid purchase."); return; }
     if (hasInvestor && !investorId) { setMessage("Error: Please select an investor."); return; }
 
     setLoading(true);
@@ -264,6 +274,9 @@ export const PurchaseInvoiceManager = () => {
 
       await runTransaction(db, async (tx) => {
         // --- READ PHASE ---
+        const currentVehicle = await tx.get(doc(db, "cars", selectedVehicle.id));
+        if (!currentVehicle.exists()) throw new Error("Vehicle record not found.");
+        if (Number(currentVehicle.data().purchasePrice) > 0) throw new Error("This vehicle already has a purchase invoice.");
         let paymentAccSnap: any = null;
         let clientAccSnap: any = null;
         let clientSnap: any = null;
@@ -275,14 +288,17 @@ export const PurchaseInvoiceManager = () => {
         } else if (!isPaid && selectedSellerId) {
           const clientRef = doc(db, "clients", selectedSellerId);
           clientSnap = await tx.get(clientRef);
-          if (clientSnap.exists()) {
-            const clientData = clientSnap.data();
-            if (clientData.accountId) {
-              const cAccRef = doc(db, "accounts", clientData.accountId);
-              clientAccSnap = await tx.get(cAccRef);
-            } else {
-              throw new Error(`Seller "${clientData.name}" has no linked ledger account. Please save the client again to auto-create one.`);
-            }
+          if (!clientSnap.exists()) {
+            throw new Error("Selected seller no longer exists. Please select another seller.");
+          }
+          const clientData = clientSnap.data();
+          if (!clientData.accountId) {
+            throw new Error(`Seller "${clientData.name}" has no linked ledger account. Please link a ledger account before creating the invoice.`);
+          }
+          const cAccRef = doc(db, "accounts", clientData.accountId);
+          clientAccSnap = await tx.get(cAccRef);
+          if (!clientAccSnap.exists()) {
+            throw new Error(`Ledger account for seller "${clientData.name}" was not found. Please restore the missing account or correct the seller's account link before creating the invoice.`);
           }
         }
 
@@ -453,6 +469,9 @@ export const PurchaseInvoiceManager = () => {
         tx.update(carRef, {
           purchasePrice: priceVal,
           isPaid,
+          purchasePaidAtCreation: isPaid,
+          purchasePaidAmount: isPaid ? priceVal : 0,
+          sellerAccountId: clientSnap?.data()?.accountId || null,
           paymentAccountId: isPaid ? paymentAccountId : null,
           sellerClientId: selectedSellerId || null,
           sellerClientName: sellerClient?.name || "",
@@ -595,7 +614,7 @@ export const PurchaseInvoiceManager = () => {
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                 <div className="p-1.5 bg-purple-100 rounded-md text-purple-600"><Users size={14} /></div>
                 <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Seller / Client</h4>
-                <span className="text-xs text-slate-400 italic">(Optional — required for unpaid payable entry)</span>
+                <span className="text-xs text-slate-400 italic">(Required for an unpaid purchase)</span>
               </div>
               <ClientSelector
                 clients={clients}
@@ -939,6 +958,7 @@ export const PurchaseInvoiceManager = () => {
                           <span className="font-bold text-blue-700 text-sm">
                             Rs. {Number(inv.purchasePrice || 0).toLocaleString()}
                           </span>
+                          {!inv.isPaid && <div className="text-[10px] text-amber-700">Outstanding: Rs. {purchaseOutstanding(inv).toLocaleString()}</div>}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {inv.isPaid ? (
@@ -947,7 +967,7 @@ export const PurchaseInvoiceManager = () => {
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-                              ⏳ Unpaid
+                              {inv.purchasePaidAmount > 0 ? "Partially Paid" : "Unpaid"}
                             </span>
                           )}
                         </td>

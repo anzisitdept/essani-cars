@@ -1,4 +1,5 @@
 "use client";
+import { canReversePurchase } from "@/lib/purchasePayments";
 
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -332,15 +333,19 @@ export function PurchaseInventoryList() {
         const carRef = doc(db, "cars", car.id);
         const carSnap = await tx.get(carRef);
         if (!carSnap.exists()) throw new Error("Vehicle record not found.");
+        if (!canReversePurchase(carSnap.data())) throw new Error("Reverse the invoice's linked payments before reversing this purchase.");
 
         // Read payment/seller account
         let payAccRef: any = null;
         let payAccSnap: any = null;
 
-        if (car.isPaid && car.paymentAccountId) {
+        if ((carSnap.data().purchasePaidAtCreation ?? carSnap.data().isPaid) && car.paymentAccountId) {
           payAccRef = doc(db, "accounts", car.paymentAccountId);
           payAccSnap = await tx.get(payAccRef);
-        } else if (!car.isPaid && car.sellerClientId) {
+        } else if (!(carSnap.data().purchasePaidAtCreation ?? carSnap.data().isPaid) && car.sellerAccountId) {
+          payAccRef = doc(db, "accounts", car.sellerAccountId);
+          payAccSnap = await tx.get(payAccRef);
+        } else if (!(carSnap.data().purchasePaidAtCreation ?? carSnap.data().isPaid) && car.sellerClientId) {
           // Look up the client's linked account id
           const clientRef = doc(db, "clients", car.sellerClientId);
           const clientSnap = await tx.get(clientRef);
@@ -358,6 +363,7 @@ export function PurchaseInventoryList() {
         }
 
         // WRITE PHASE
+        if (payAccRef && !payAccSnap?.exists()) throw new Error("Restore the missing payment/seller ledger before reversing this purchase.");
 
         // Delete purchase vouchers
         voucherRefs.forEach(ref => tx.delete(ref));
@@ -382,6 +388,9 @@ export function PurchaseInventoryList() {
         tx.update(carRef, {
           purchasePrice: 0,
           isPaid: false,
+          purchasePaidAtCreation: false,
+          purchasePaidAmount: 0,
+          sellerAccountId: null,
           paymentAccountId: null,
           sellerClientId: null,
           sellerClientName: "",

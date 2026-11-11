@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { Fragment, useEffect, useState, useMemo } from "react";
 import {
   collection, query, orderBy, limit, onSnapshot, Timestamp, getDocs, where
 } from "firebase/firestore";
@@ -11,6 +11,7 @@ import {
   Landmark, ClipboardList, BadgeCheck, BarChart3
 } from "lucide-react";
 import { db } from "@/lib/firebase";
+import { isClientPayable } from "@/lib/purchasePayments";
 import { useAuth } from "@/context/AuthContext";
 import { StatsCard } from "@/components/shared/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -68,6 +69,8 @@ interface InventoryItem {
 }
 
 interface VoucherData {
+  cashType?: string;
+  type?: string;
   id: string;
   invoiceType?: string;
   amount?: number;
@@ -213,7 +216,7 @@ export default function DashboardPage() {
       // Receivables/Payables: Customer or Client accounts
       else if (t === "customer" || t === "client") {
         if (b > 0) receivables += b;
-        else if (b < 0) payables += Math.abs(b);
+        else if (isClientPayable(a)) payables += Math.abs(b);
       }
     });
     return { bank, cash, receivables, payables };
@@ -273,12 +276,13 @@ export default function DashboardPage() {
       pieData = recAccs.sort((a, b) => b.balance - a.balance).slice(0, 7).map(a => ({ name: a.name, value: a.balance }));
       vouchers.forEach(v => { if (v.invoiceType === "SALE") addToTrend(v.date, v.amount || 0); });
     } else if (activeMetric === "payables") {
-      const payAccs = accounts.filter(a => {
-        const t = (a.typeName || "").toLowerCase();
-        return (t === "client" || t === "customer") && a.balance < 0;
-      });
+      const payAccs = accounts.filter(isClientPayable);
       pieData = payAccs.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance)).slice(0, 7).map(a => ({ name: a.name, value: Math.abs(a.balance) }));
-      vouchers.forEach(v => { if (v.invoiceType === "PURCHASE") addToTrend(v.date, v.amount || 0); });
+      const clientAccountIds = new Set(accounts.filter(a => ["client", "customer"].includes((a.typeName || "").toLowerCase())).map(a => a.id));
+      vouchers.forEach(v => {
+        if (v.invoiceType === "PURCHASE" && (v.cashType || v.type) === "credit"
+          && clientAccountIds.has(v.cashAccountId || v.accountId || "")) addToTrend(v.date, v.amount || 0);
+      });
     }
 
     // Build ordered trend array (ascending by date approximation via insertion order reversed)
@@ -600,13 +604,13 @@ export default function DashboardPage() {
                   { label: "At Excise", value: analytics.docsExcise, cls: "bg-orange-100 text-orange-700" },
                   { label: "Delivered", value: analytics.docsDelivered, cls: "bg-green-100 text-green-700" },
                 ].map((s, i, arr) => (
-                  <>
-                    <div key={s.label} className="flex flex-col items-center gap-1.5 bg-white px-2">
+                  <Fragment key={s.label}>
+                    <div className="flex flex-col items-center gap-1.5 bg-white px-2">
                       <div className={`w-11 h-11 rounded-xl ${s.cls} flex items-center justify-center shadow-sm font-bold text-base`}>{s.value}</div>
                       <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">{s.label}</span>
                     </div>
-                    {i < arr.length - 1 && <ArrowRight size={16} className="text-slate-300 shrink-0" key={`arr-${i}`} />}
-                  </>
+                    {i < arr.length - 1 && <ArrowRight size={16} className="text-slate-300 shrink-0" />}
+                  </Fragment>
                 ))}
               </div>
               <div className="bg-slate-50 p-2.5 rounded-lg flex flex-wrap justify-between items-center gap-2 text-xs">
@@ -631,13 +635,13 @@ export default function DashboardPage() {
                   { label: "Not Available", value: analytics.platesNotAvail,  cls: "bg-slate-100 text-slate-600" },
                   { label: "Delivered",     value: analytics.platesDelivered, cls: "bg-green-100 text-green-700" },
                 ].map((s, i, arr) => (
-                  <>
-                    <div key={s.label} className="flex flex-col items-center gap-1.5 bg-white px-2">
+                  <Fragment key={s.label}>
+                    <div className="flex flex-col items-center gap-1.5 bg-white px-2">
                       <div className={`w-11 h-11 rounded-xl ${s.cls} flex items-center justify-center shadow-sm font-bold text-base`}>{s.value}</div>
                       <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">{s.label}</span>
                     </div>
-                    {i < arr.length - 1 && <ArrowRight size={16} className="text-slate-300 shrink-0" key={`arr-${i}`} />}
-                  </>
+                    {i < arr.length - 1 && <ArrowRight size={16} className="text-slate-300 shrink-0" />}
+                  </Fragment>
                 ))}
               </div>
               <div className="bg-slate-50 p-2.5 rounded-lg flex flex-wrap justify-between items-center gap-2 text-xs">

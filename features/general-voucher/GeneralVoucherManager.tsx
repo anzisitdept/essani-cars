@@ -14,6 +14,8 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { SearchSelector } from "@/components/ui/SearchSelector";
+import { PurchaseInvoicePaymentSelector } from "@/components/shared/PurchaseInvoicePaymentSelector";
+import { preparePurchasePayment } from "@/lib/purchasePaymentTransaction";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +27,7 @@ import {
 import { Search, Plus, Trash2, Printer, X, CheckCircle2, AlertTriangle, FileText, Calendar, ArrowRightLeft } from "lucide-react";
 
 interface GeneralVoucher {
+  purchaseInvoiceId?: string | null;
   id: string;
   voucherNo: number;
   date: string;
@@ -68,6 +71,7 @@ export const GeneralVoucherManager = () => {
     date: new Date().toISOString().split('T')[0],
     fromAccountId: "",
     toAccountId: "",
+    purchaseInvoiceId: "",
     description: "",
     amount: ""
   });
@@ -145,6 +149,7 @@ export const GeneralVoucherManager = () => {
       date: new Date().toISOString().split('T')[0],
       fromAccountId: "",
       toAccountId: "",
+      purchaseInvoiceId: "",
       description: "",
       amount: ""
     });
@@ -184,6 +189,8 @@ export const GeneralVoucherManager = () => {
         if (!fromSnap.exists() || !toSnap.exists()) {
           throw new Error("One or both selected accounts do not exist.");
         }
+        const purchaseUpdates = await preparePurchasePayment(transaction, db,
+          formData.purchaseInvoiceId ? { invoiceId: formData.purchaseInvoiceId, accountId: formData.toAccountId, amount: enteredAmount } : null);
 
         const fromData = fromSnap.data();
         const toData = toSnap.data();
@@ -197,6 +204,7 @@ export const GeneralVoucherManager = () => {
         // Save general voucher doc
         const voucherRef = doc(collection(db, "general-vouchers"));
         transaction.set(voucherRef, {
+          purchaseInvoiceId: formData.purchaseInvoiceId || null,
           voucherNo: nextVoucherNo,
           date: formData.date,
           fromAccountId: formData.fromAccountId,
@@ -214,6 +222,7 @@ export const GeneralVoucherManager = () => {
         });
 
         // Update from account
+        purchaseUpdates.forEach(({ ref, data }) => transaction.update(ref, data));
         transaction.update(fromRef, {
           balance: finalFromBal,
           updatedAt: serverTimestamp(),
@@ -258,19 +267,26 @@ export const GeneralVoucherManager = () => {
         const voucherRef = doc(db, "general-vouchers", voucher.id);
         const voucherSnap = await transaction.get(voucherRef);
         if (!voucherSnap.exists()) return;
+        const current = voucherSnap.data() as GeneralVoucher;
+        const purchaseUpdates = await preparePurchasePayment(transaction, db, null,
+          current.purchaseInvoiceId ? { invoiceId: current.purchaseInvoiceId, accountId: current.toAccountId, amount: current.amount } : null);
 
         // Fetch accounts
-        const fromRef = doc(db, "accounts", voucher.fromAccountId);
-        const toRef = doc(db, "accounts", voucher.toAccountId);
+        const fromRef = doc(db, "accounts", current.fromAccountId);
+        const toRef = doc(db, "accounts", current.toAccountId);
 
         const fromSnap = await transaction.get(fromRef);
         const toSnap = await transaction.get(toRef);
+        if (current.purchaseInvoiceId && (!fromSnap.exists() || !toSnap.exists())) {
+          throw new Error("Restore the payment's missing ledger account before reversing it.");
+        }
+        purchaseUpdates.forEach(({ ref, data }) => transaction.update(ref, data));
 
         if (fromSnap.exists()) {
           const currentFromBal = fromSnap.data().balance || 0;
           // Revert: since it was cut/subtracted, add it back.
           transaction.update(fromRef, {
-            balance: currentFromBal + voucher.amount,
+            balance: currentFromBal + current.amount,
             updatedAt: serverTimestamp()
           });
         }
@@ -279,7 +295,7 @@ export const GeneralVoucherManager = () => {
           const currentToBal = toSnap.data().balance || 0;
           // Revert: since it was added, subtract it.
           transaction.update(toRef, {
-            balance: currentToBal - voucher.amount,
+            balance: currentToBal - current.amount,
             updatedAt: serverTimestamp()
           });
         }
@@ -590,7 +606,7 @@ export const GeneralVoucherManager = () => {
                   <SearchSelector
                     items={accounts}
                     value={formData.toAccountId}
-                    onChange={(val) => setFormData(prev => ({ ...prev, toAccountId: val }))}
+                    onChange={(val) => setFormData(prev => ({ ...prev, toAccountId: val, purchaseInvoiceId: "" }))}
                     placeholder="Choose account"
                     searchPlaceholder="Search account..."
                     getSearchFields={(acc) => [acc.name, acc.typeName]}
@@ -613,6 +629,11 @@ export const GeneralVoucherManager = () => {
               </div>
 
               {/* Balances Display Card */}
+              {formData.toAccountId && (
+                <PurchaseInvoicePaymentSelector accountId={formData.toAccountId}
+                  value={formData.purchaseInvoiceId}
+                  onChange={id => setFormData(prev => ({ ...prev, purchaseInvoiceId: id }))} />
+              )}
               {(formData.fromAccountId || formData.toAccountId) && (
                 <div className="border rounded-lg overflow-hidden bg-slate-50">
                   <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x border-b p-3 text-xs">

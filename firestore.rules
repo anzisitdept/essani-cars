@@ -1,0 +1,54 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function userRole() {
+      return userDoc().get('role', '');
+    }
+
+    function userPermissions() {
+      return userDoc().get('permissions', []);
+    }
+
+    function hasPermission(permission) {
+      return signedIn() && (
+        userRole() in ['admin', 'Super Admin'] ||
+        userPermissions().hasAny(['ALL', permission])
+      );
+    }
+
+    // Sensitive collections. Only users with the matching permission can
+    // manage other users or roles.
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || hasPermission('users'));
+      allow create, update, delete: if hasPermission('users');
+    }
+
+    match /roles/{roleId} {
+      allow read: if signedIn();
+      allow create, update, delete: if hasPermission('roles');
+    }
+
+    // Application data. Any signed-in user can use the app; page-level
+    // access is controlled by the permissions loaded in the UI.
+    match /{collection}/{document} {
+      allow read, write: if signedIn()
+        && collection != 'users'
+        && collection != 'roles';
+    }
+
+    match /{collection}/{document}/{subcollection=**} {
+      allow read, write: if signedIn()
+        && collection != 'users'
+        && collection != 'roles';
+    }
+  }
+}

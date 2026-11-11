@@ -8,17 +8,29 @@ export const dynamic = "force-dynamic";
 const RATE_CACHE_TTL_MS = 5 * 60 * 1000;
 const BASE_CURRENCY = "USD";
 
-let cached: { rates: Record<string, number>; base: string; date: string; fetchedAt: number } | null = null;
+type CachedRates = { rates: Record<string, number>; base: string; date: string; fetchedAt: number };
+const rateCache = new Map<string, CachedRates>();
 
-function readUpstreamError(data: any): string {
+function readUpstreamError(data: { error?: string | { message?: string }; description?: string }): string {
     if (typeof data?.error === "string") return data.error;
-    if (typeof data?.error?.message === "string") return data.error.message;
+    if (typeof data?.error === "object" && typeof data.error?.message === "string") return data.error.message;
     if (typeof data?.description === "string") return data.description;
     return "Exchange rate service returned an invalid response";
 }
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const date = new URL(request.url).searchParams.get("date") || "";
+        const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
+        if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date)
+            || !Number.isFinite(Date.parse(date))
+            || new Date(date).toISOString().slice(0, 10) !== date
+            || date > today)) {
+            return NextResponse.json(
+                { success: false, error: "Select a valid date that is not in the future" },
+                { status: 400 }
+            );
+        }
         const apiKey = process.env.FXRATES_API_KEY;
 
         if (!apiKey) {
@@ -29,6 +41,8 @@ export async function GET() {
             );
         }
 
+        const cacheKey = date || "latest";
+        const cached = rateCache.get(cacheKey);
         if (cached && Date.now() - cached.fetchedAt < RATE_CACHE_TTL_MS) {
             return NextResponse.json({
                 success: true,
@@ -38,10 +52,11 @@ export async function GET() {
             });
         }
 
-        const response = await fetch(
-            `https://api.fxratesapi.com/latest?base=${BASE_CURRENCY}&apikey=${apiKey}`,
-            { cache: "no-store" }
-        );
+        const upstreamUrl = new URL(`https://api.fxratesapi.com/${date ? "historical" : "latest"}`);
+        upstreamUrl.searchParams.set("base", BASE_CURRENCY);
+        upstreamUrl.searchParams.set("api_key", apiKey);
+        if (date) upstreamUrl.searchParams.set("date", date);
+        const response = await fetch(upstreamUrl, { cache: "no-store" });
 
         if (!response.ok) {
             let upstreamError = `Exchange rate request failed (${response.status})`;
@@ -66,18 +81,28 @@ export async function GET() {
             );
         }
 
-        cached = {
+        if (date && data.date?.slice(0, 10) !== date) {
+            return NextResponse.json(
+                { success: false, error: "Exchange rates are not available for the selected date" },
+                { status: 502 }
+            );
+        }
+
+        const result: CachedRates = {
             rates: data.rates,
             base: data.base || BASE_CURRENCY,
             date: data.date,
             fetchedAt: Date.now()
         };
+        // Bound memory usage when users look up many different dates.
+        if (rateCache.size >= 100) rateCache.clear();
+        rateCache.set(cacheKey, result);
 
         return NextResponse.json({
             success: true,
-            base: cached.base,
-            date: cached.date,
-            rates: cached.rates
+            base: result.base,
+            date: result.date,
+            rates: result.rates
         });
 
     } catch (error) {

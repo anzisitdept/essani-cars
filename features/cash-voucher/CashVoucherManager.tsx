@@ -14,6 +14,8 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { SearchSelector } from "@/components/ui/SearchSelector";
+import { PurchaseInvoicePaymentSelector } from "@/components/shared/PurchaseInvoicePaymentSelector";
+import { preparePurchasePayment } from "@/lib/purchasePaymentTransaction";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +27,8 @@ import {
 import { Search, Plus, Trash2, Printer, X, CheckCircle2, AlertTriangle, FileText, Calendar, DollarSign, Eye, Edit } from "lucide-react";
 
 interface Voucher {
+  purchaseInvoiceId?: string | null;
+  invoiceType?: string;
   id: string;
   voucherNo: number;
   date: string;
@@ -63,12 +67,12 @@ interface Account {
 
 export const CashVoucherManager = () => {
   const { user } = useAuth();
-  
+
   // Data State
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [filteredAccounts, setFilteredAccounts] = useState<Account[]>([]);
-  
+
   // UI State
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
@@ -83,6 +87,7 @@ export const CashVoucherManager = () => {
     date: new Date().toISOString().split('T')[0],
     cashAccountId: "",
     counterAccountId: "",
+    purchaseInvoiceId: "",
     description: "",
     debit: "",
     credit: ""
@@ -97,6 +102,7 @@ export const CashVoucherManager = () => {
     date: "",
     cashAccountId: "",
     counterAccountId: "",
+    purchaseInvoiceId: "",
     description: "",
     debit: "",
     credit: ""
@@ -113,7 +119,7 @@ export const CashVoucherManager = () => {
     const unsubAccounts = onSnapshot(qAccounts, (snapshot) => {
       const allAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
       setAccounts(allAccounts);
-      
+
       // Filter only "cash" type accounts (whose type name or account name contains 'cash')
       const cashAccounts = allAccounts.filter(acc => 
         acc.typeName.toLowerCase().includes("cash") || 
@@ -133,14 +139,14 @@ export const CashVoucherManager = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input/textarea
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      
+
       // Press 'n' or 'N' to open Create Voucher modal
       if (e.key.toLowerCase() === 'n') {
         e.preventDefault();
         if (!isCreateOpen) setIsCreateOpen(true);
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isCreateOpen]);
@@ -184,6 +190,7 @@ export const CashVoucherManager = () => {
     setFormData(prev => ({
       ...prev,
       debit: cleanVal,
+      purchaseInvoiceId: "",
       credit: cleanVal ? "" : prev.credit
     }));
   };
@@ -218,6 +225,7 @@ export const CashVoucherManager = () => {
       date: new Date().toISOString().split('T')[0],
       cashAccountId: "",
       counterAccountId: "",
+      purchaseInvoiceId: "",
       description: "",
       debit: "",
       credit: ""
@@ -232,6 +240,7 @@ export const CashVoucherManager = () => {
       date: voucher.date,
       cashAccountId: voucher.cashAccountId || voucher.accountId,
       counterAccountId: voucher.counterAccountId || "",
+      purchaseInvoiceId: voucher.purchaseInvoiceId || "",
       description: voucher.description,
       debit: cashType === 'debit' ? voucher.amount.toString() : "",
       credit: cashType === 'credit' ? voucher.amount.toString() : ""
@@ -245,6 +254,7 @@ export const CashVoucherManager = () => {
     setEditFormData(prev => ({
       ...prev,
       debit: cleanVal,
+      purchaseInvoiceId: "",
       credit: cleanVal ? "" : prev.credit
     }));
   };
@@ -316,6 +326,7 @@ export const CashVoucherManager = () => {
         if (!voucherSnap.exists()) throw new Error("Voucher does not exist.");
 
         const oldData = voucherSnap.data() as Voucher;
+        if (oldData.invoiceType === "PURCHASE") throw new Error("Reverse purchase entries from Purchase Invoices.");
         const oldCashId = oldData.cashAccountId || oldData.accountId;
         const oldCounterId = oldData.counterAccountId;
         const oldCashType = oldData.cashType || oldData.type;
@@ -323,6 +334,10 @@ export const CashVoucherManager = () => {
         const oldAmount = oldData.amount;
         const newCashId = editFormData.cashAccountId;
         const newCounterId = editFormData.counterAccountId;
+        if (editFormData.purchaseInvoiceId && newCashType !== 'credit') throw new Error("Purchase invoice payments must be cash outflows (Credit).");
+        const purchaseUpdates = await preparePurchasePayment(transaction, db,
+          editFormData.purchaseInvoiceId ? { invoiceId: editFormData.purchaseInvoiceId, accountId: newCounterId, amount: newAmount } : null,
+          oldData.purchaseInvoiceId ? { invoiceId: oldData.purchaseInvoiceId, accountId: oldCounterId, amount: oldAmount } : null);
 
         const allIds = [...new Set([oldCashId, oldCounterId, newCashId, newCounterId].filter(Boolean) as string[])];
         const allRefs = allIds.map(id => doc(db, "accounts", id));
@@ -344,10 +359,12 @@ export const CashVoucherManager = () => {
         const counterNew = balMap[newCounterId];
 
         // Write account updates
+        purchaseUpdates.forEach(({ ref, data }) => transaction.update(ref, data));
         allIds.forEach((id, i) => { transaction.update(allRefs[i], { balance: balMap[id], updatedAt: serverTimestamp(), updatedBy: user.uid }); });
 
         // Update voucher
         transaction.update(voucherRef, {
+          purchaseInvoiceId: editFormData.purchaseInvoiceId || null,
           date: editFormData.date, description: editFormData.description.trim(),
           amount: newAmount, debit: debitAmt, credit: creditAmt,
           cashAccountId: newCashId, cashAccountName: dataMap[newCashId]?.name || "",
@@ -407,6 +424,9 @@ export const CashVoucherManager = () => {
 
         if (!cashSnap.exists()) throw new Error("Cash account does not exist.");
         if (!counterSnap.exists()) throw new Error("Counter account does not exist.");
+        if (formData.purchaseInvoiceId && cashType !== 'credit') throw new Error("Purchase invoice payments must be cash outflows (Credit).");
+        const purchaseUpdates = await preparePurchasePayment(transaction, db,
+          formData.purchaseInvoiceId ? { invoiceId: formData.purchaseInvoiceId, accountId: formData.counterAccountId, amount } : null);
 
         const cashPrevBal = cashSnap.data().balance || 0;
         const counterPrevBal = counterSnap.data().balance || 0;
@@ -415,6 +435,7 @@ export const CashVoucherManager = () => {
 
         const voucherRef = doc(collection(db, "vouchers"));
         transaction.set(voucherRef, {
+          purchaseInvoiceId: formData.purchaseInvoiceId || null,
           voucherNo: nextVoucherNo,
           date: formData.date,
           description: formData.description.trim(),
@@ -429,6 +450,7 @@ export const CashVoucherManager = () => {
           createdBy: user.uid, createdAt: serverTimestamp()
         });
 
+        purchaseUpdates.forEach(({ ref, data }) => transaction.update(ref, data));
         transaction.update(cashRef, { balance: cashNewBal, updatedAt: serverTimestamp(), updatedBy: user.uid });
         transaction.update(counterRef, { balance: counterNewBal, updatedAt: serverTimestamp(), updatedBy: user.uid });
 
@@ -459,23 +481,27 @@ export const CashVoucherManager = () => {
         const voucherRef = doc(db, "vouchers", voucher.id);
         const voucherSnap = await transaction.get(voucherRef);
         if (!voucherSnap.exists()) return;
-
-        const cashId = voucher.cashAccountId || voucher.accountId;
-        const cashType = voucher.cashType || voucher.type;
+        const current = voucherSnap.data() as Voucher;
+        if (current.invoiceType === "PURCHASE") throw new Error("Reverse purchase entries from Purchase Invoices.");
+        const purchaseUpdates = await preparePurchasePayment(transaction, db, null,
+          current.purchaseInvoiceId ? { invoiceId: current.purchaseInvoiceId, accountId: current.counterAccountId, amount: current.amount } : null);
+        const cashId = current.cashAccountId || current.accountId;
+        const cashType = current.cashType || current.type;
         const cashRef = doc(db, "accounts", cashId);
         const cashSnap = await transaction.get(cashRef);
+        const counterRef = current.counterAccountId && current.counterType ? doc(db, "accounts", current.counterAccountId) : null;
+        const counterSnap = counterRef ? await transaction.get(counterRef) : null;
+        if (current.purchaseInvoiceId && (!cashSnap.exists() || !counterSnap?.exists())) {
+          throw new Error("Restore the payment's missing ledger account before reversing it.");
+        }
+        purchaseUpdates.forEach(({ ref, data }) => transaction.update(ref, data));
         if (cashSnap.exists()) {
-          const rev = cashType === 'debit' ? (cashSnap.data().balance || 0) - voucher.amount : (cashSnap.data().balance || 0) + voucher.amount;
+          const rev = cashType === 'debit' ? (cashSnap.data().balance || 0) - current.amount : (cashSnap.data().balance || 0) + current.amount;
           transaction.update(cashRef, { balance: rev, updatedAt: serverTimestamp() });
         }
-
-        if (voucher.counterAccountId && voucher.counterType) {
-          const counterRef = doc(db, "accounts", voucher.counterAccountId);
-          const counterSnap = await transaction.get(counterRef);
-          if (counterSnap.exists()) {
-            const rev = voucher.counterType === 'debit' ? (counterSnap.data().balance || 0) - voucher.amount : (counterSnap.data().balance || 0) + voucher.amount;
-            transaction.update(counterRef, { balance: rev, updatedAt: serverTimestamp() });
-          }
+        if (counterRef && counterSnap?.exists()) {
+          const rev = current.counterType === 'debit' ? (counterSnap.data().balance || 0) - current.amount : (counterSnap.data().balance || 0) + current.amount;
+          transaction.update(counterRef, { balance: rev, updatedAt: serverTimestamp() });
         }
 
         transaction.delete(voucherRef);
@@ -541,7 +567,7 @@ export const CashVoucherManager = () => {
       }
       return acc;
     }, {} as Record<string, { date: string; vouchersCount: number; accounts: Set<string>; totalDebit: number; totalCredit: number }>);
-    
+
     return Object.values(groupedByDate).sort((a, b) => b.date.localeCompare(a.date));
   }, [filteredVouchers]);
 
@@ -844,7 +870,7 @@ export const CashVoucherManager = () => {
                 <SearchSelector
                   items={accounts.filter(a => a.id !== formData.cashAccountId)}
                   value={formData.counterAccountId}
-                  onChange={(val) => setFormData(prev => ({ ...prev, counterAccountId: val }))}
+                  onChange={(val) => setFormData(prev => ({ ...prev, counterAccountId: val, purchaseInvoiceId: "" }))}
                   placeholder="Choose counter account"
                   searchPlaceholder="Search account..."
                   getSearchFields={(acc) => [acc.name, acc.typeName]}
@@ -928,6 +954,11 @@ export const CashVoucherManager = () => {
               </div>
 
               <div className="space-y-2">
+                {formData.counterAccountId && formData.credit && (
+                  <PurchaseInvoicePaymentSelector accountId={formData.counterAccountId}
+                    value={formData.purchaseInvoiceId}
+                    onChange={id => setFormData(prev => ({ ...prev, purchaseInvoiceId: id }))} />
+                )}
                 <label className="text-xs font-semibold text-slate-500 block">Description / Notes *</label>
                 <Input required value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="e.g. Paid office utility bills, received from investor" />
               </div>
@@ -1097,7 +1128,7 @@ export const CashVoucherManager = () => {
                 <SearchSelector
                   items={accounts.filter(a => a.id !== editFormData.cashAccountId)}
                   value={editFormData.counterAccountId}
-                  onChange={(val) => setEditFormData(prev => ({ ...prev, counterAccountId: val }))}
+                  onChange={(val) => setEditFormData(prev => ({ ...prev, counterAccountId: val, purchaseInvoiceId: "" }))}
                   placeholder="Choose counter account"
                   searchPlaceholder="Search account..."
                   getSearchFields={(acc) => [acc.name, acc.typeName]}
@@ -1181,6 +1212,12 @@ export const CashVoucherManager = () => {
               </div>
 
               <div className="space-y-2">
+                {editFormData.counterAccountId && editFormData.credit && (
+                  <PurchaseInvoicePaymentSelector accountId={editFormData.counterAccountId}
+                    value={editFormData.purchaseInvoiceId}
+                    originalInvoiceId={selectedEditVoucher?.purchaseInvoiceId || undefined} originalAmount={selectedEditVoucher?.amount}
+                    onChange={id => setEditFormData(prev => ({ ...prev, purchaseInvoiceId: id }))} />
+                )}
                 <label className="text-xs font-semibold text-slate-500 block">Description / Notes *</label>
                 <Input required value={editFormData.description} onChange={e => setEditFormData({ ...editFormData, description: e.target.value })} placeholder="e.g. Paid office utility bills" />
               </div>
@@ -1213,7 +1250,7 @@ export const CashVoucherManager = () => {
               </Button>
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-hidden bg-slate-100 p-4 md:p-8">
             <div className="h-full overflow-y-auto">
               <div className="shadow-2xl shadow-slate-200 rounded-xl overflow-hidden ring-1 ring-slate-200 bg-white">

@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useMemo, useCallback, FormEvent } from "react";
+import { useState, useEffect, useMemo, FormEvent } from "react";
+import { useCurrencyExchangeRate } from "@/hooks/useCurrencyExchangeRate";
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot,
   query, orderBy, serverTimestamp, getDocs, where
@@ -131,10 +132,10 @@ export const AccountsManager = () => {
   // create/update payload written to Firestore.
   const [currencyCode, setCurrencyCode] = useState("USD");
   const [currencyAmount, setCurrencyAmount] = useState("");
-  const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
-  const [ratesDate, setRatesDate] = useState("");
-  const [ratesLoading, setRatesLoading] = useState(true);
-  const [ratesError, setRatesError] = useState("");
+  const {
+    selectedRate, rateInput, changeRate, ratesDate, changeRatesDate,
+    ratesLoading, ratesError, fetchExchangeRates, today,
+  } = useCurrencyExchangeRate(currencyCode);
 
   // Fetch Accounts and Account Types
   useEffect(() => {
@@ -166,52 +167,11 @@ export const AccountsManager = () => {
     };
   }, []);
 
-  // Fetch latest exchange rates from the server-side proxy (API key stays server-side).
-  const fetchExchangeRates = useCallback(async () => {
-    setRatesLoading(true);
-    setRatesError("");
-    try {
-      const res = await fetch("/api/exchange-rate");
-      const data = await res.json();
-      if (!res.ok || !data?.success || !data?.rates) {
-        throw new Error(data?.error || "Failed to load exchange rates");
-      }
-      setExchangeRates(data.rates);
-      setRatesDate(data.date || "");
-    } catch (err: any) {
-      setExchangeRates(null);
-      setRatesError(err?.message || "Failed to load exchange rates");
-    } finally {
-      setRatesLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchExchangeRates();
-  }, [fetchExchangeRates]);
-
-  // Convert the entered amount into PKR using the latest rates (base USD).
   const pkrAmount = useMemo(() => {
     const amount = parseFloat(currencyAmount);
-    if (!isFinite(amount) || amount <= 0) return null;
-    if (!exchangeRates) return null;
-
-    // Rates are relative to USD: rates[X] = units of X per 1 USD.
-    // rate(X -> PKR) = rates[PKR] / rates[X]
-    const fromRate = exchangeRates[currencyCode];
-    const pkrRate = exchangeRates.PKR;
-    if (!fromRate || !pkrRate) return null;
-
-    return (amount / fromRate) * pkrRate;
-  }, [currencyAmount, currencyCode, exchangeRates]);
-
-  const selectedRate = useMemo(() => {
-    if (!exchangeRates) return null;
-    const fromRate = exchangeRates[currencyCode];
-    const pkrRate = exchangeRates.PKR;
-    if (!fromRate || !pkrRate) return null;
-    return pkrRate / fromRate;
-  }, [currencyCode, exchangeRates]);
+    if (!isFinite(amount) || amount <= 0 || selectedRate === null) return null;
+    return amount * selectedRate;
+  }, [currencyAmount, selectedRate]);
 
   const resetForm = () => {
     setFormData({
@@ -592,19 +552,36 @@ export const AccountsManager = () => {
               />
               {ratesLoading ? (
                 <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                  <Loader2 size={12} className="animate-spin" /> Loading latest exchange rate...
+                  <Loader2 size={12} className="animate-spin" /> Loading exchange rate...
                 </p>
               ) : ratesError ? (
                 <p className="text-[10px] text-red-600 mt-1 flex items-center gap-1">
                   <AlertTriangle size={12} /> {ratesError}
                   <button type="button" onClick={fetchExchangeRates} className="underline font-medium ml-1">Retry</button>
                 </p>
-              ) : selectedRate !== null ? (
-                <p className="text-[10px] text-slate-400 mt-1">
-                  1 {currencyCode} = {selectedRate.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 4 })} PKR
-                  {ratesDate ? ` • ${new Date(ratesDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}
-                </p>
               ) : null}
+              <div className="text-[10px] text-slate-400 mt-1 flex flex-wrap items-center gap-1">
+                1 {currencyCode} ={" "}
+                <Input
+                  type="number"
+                  step="any"
+                  min="0"
+                  aria-label={`${currencyCode} to PKR exchange rate`}
+                  value={rateInput}
+                  disabled={ratesLoading}
+                  onChange={(e) => changeRate(e.target.value)}
+                  className="h-6 w-24 px-1 text-xs md:text-xs"
+                />
+                <span>PKR •</span>
+                <Input
+                  type="date"
+                  max={today}
+                  aria-label="Exchange rate date"
+                  value={ratesDate.slice(0, 10)}
+                  onChange={(e) => changeRatesDate(e.target.value)}
+                  className="h-6 w-auto px-1 text-xs md:text-xs"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

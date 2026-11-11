@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { purchaseOutstanding } from "@/lib/purchasePayments";
 import {
   Select,
   SelectContent,
@@ -87,12 +88,13 @@ export function PurchaseInvoicesList() {
 
     filteredInvoices.forEach(inv => {
       const price = Number(inv.purchasePrice) || 0;
+      const outstanding = purchaseOutstanding(inv);
+      paidAmount += price - outstanding;
+      unpaidAmount += outstanding;
       if (inv.isPaid) {
         paidCount++;
-        paidAmount += price;
       } else {
         unpaidCount++;
-        unpaidAmount += price;
       }
 
       if (inv.isSold) {
@@ -332,6 +334,7 @@ export function PurchaseInvoicesList() {
                       <span className="font-bold text-slate-900 text-sm">
                         Rs. {Number(inv.purchasePrice || 0).toLocaleString()}
                       </span>
+                      {!inv.isPaid && <div className="text-[10px] text-amber-700">Outstanding: Rs. {purchaseOutstanding(inv).toLocaleString()}</div>}
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       {inv.isPaid ? (
@@ -340,7 +343,7 @@ export function PurchaseInvoicesList() {
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-                          ⏳ Unpaid
+                          {inv.purchasePaidAmount > 0 ? "Partially Paid" : "Unpaid"}
                         </span>
                       )}
                     </td>

@@ -1,33 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, getDocs } from "firebase/firestore";
+import { collection, query, onSnapshot } from "firebase/firestore";
+import { isClientPayable } from "@/lib/purchasePayments";
 import { db } from "@/lib/firebase";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReportTable } from "@/components/shared/ReportTable";
 import { Loader2 } from "lucide-react";
 
 export const FinanceReports = () => {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [activeReportId, setActiveReportId] = useState("chart-of-accounts");
   
   // Data State
   const [accounts, setAccounts] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const q = query(collection(db, "accounts"));
-        const snapshot = await getDocs(q);
-        setAccounts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
-      } catch (error) {
-        console.error("Failed to fetch finance data", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    return onSnapshot(query(collection(db, "accounts")), snapshot => {
+      setAccounts(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+      setLoading(false);
+    }, error => {
+      console.error("Failed to fetch finance data", error);
+      setLoading(false);
+    });
   }, []);
 
   const REPORTS = [
@@ -82,14 +77,14 @@ export const FinanceReports = () => {
       }
 
       case "payables": {
-        const payables = accounts.filter(a => a.categoryName === "Liability" && (a.balance < 0 || a.typeName === "Supplier" || a.typeName === "Vendor"));
+        const payables = accounts.filter(isClientPayable);
         return (
           <ReportTable
             title="Accounts Payable Summary"
-            description="Pending amounts owed to suppliers and vendors."
+            description="Current credit balances owed to clients and customers, matching Dashboard Payables."
             data={payables}
             columns={[
-              { header: "Supplier / Vendor", accessorKey: "name" },
+              { header: "Seller / Client", accessorKey: "name" },
               { header: "Contact", accessorKey: "contact", cell: (item) => item.contact || "-" },
               { header: "Payable Amount", accessorKey: "balance", cell: (item) => `PKR ${Math.abs(item.balance || 0).toLocaleString()}` },
             ]}
