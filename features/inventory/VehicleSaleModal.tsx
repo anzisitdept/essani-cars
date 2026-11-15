@@ -96,7 +96,7 @@ export const VehicleSaleModal = ({ isOpen, onClose, vehicle }: VehicleSaleModalP
         let investorAccBal = 0;
         if (vehicle.hasInvestor && vehicle.investorId && commissionAmount > 0) {
           // Get investor's accountId from their profile
-          const investorDocRef = doc(db, "investors", vehicle.investorId);
+          const investorDocRef = doc(db, vehicle.investorSource === "client" ? "clients" : "investors", vehicle.investorId);
           const investorDocSnap = await tx.get(investorDocRef);
           if (!investorDocSnap.exists()) throw new Error("Investor profile not found.");
           const investorAccountId = investorDocSnap.data().accountId;

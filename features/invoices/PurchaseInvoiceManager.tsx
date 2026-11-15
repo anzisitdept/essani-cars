@@ -35,6 +35,7 @@ export const PurchaseInvoiceManager = () => {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [investors, setInvestors] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [investorSource, setInvestorSource] = useState<"investor" | "client">("investor");
 
   // Selection
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
@@ -222,6 +223,7 @@ export const PurchaseInvoiceManager = () => {
       setPaymentAccountId(v.paymentAccountId || "");
       setHasInvestor(v.hasInvestor || false);
       setInvestorId(v.investorId || "");
+      setInvestorSource(v.investorSource === "client" ? "client" : "investor");
       setCommissionType(v.commissionType || "Percentage");
       setCommissionValue(v.commissionValue ? v.commissionValue.toString() : "");
       setSelectedSellerId(v.sellerClientId || "");
@@ -231,6 +233,7 @@ export const PurchaseInvoiceManager = () => {
       setPaymentAccountId("");
       setHasInvestor(false);
       setInvestorId("");
+      setInvestorSource("investor");
       setCommissionType("Percentage");
       setCommissionValue("");
       setSelectedSellerId("");
@@ -478,7 +481,8 @@ export const PurchaseInvoiceManager = () => {
           sellerClientPhone: sellerClient?.phone || "",
           hasInvestor,
           investorId: hasInvestor ? investorId : null,
-          investorName: hasInvestor ? (investors.find(i => i.id === investorId)?.name || "") : null,
+          investorName: hasInvestor ? ((investorSource === "client" ? clients : investors).find(i => i.id === investorId)?.name || "") : null,
+          investorSource: hasInvestor ? investorSource : null,
           commissionType: hasInvestor ? commissionType : null,
           commissionValue: hasInvestor ? commVal : 0,
           vehicleAccountId,
@@ -755,24 +759,28 @@ export const PurchaseInvoiceManager = () => {
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-slate-500">Investor *</label>
                       <SearchSelector
-                        items={investors}
-                        value={investorId}
-                        onChange={setInvestorId}
-                        placeholder="Select investor..."
-                        searchPlaceholder="Search investor..."
-                        getSearchFields={(inv) => [inv.name, inv.phone]}
-                        itemKey={(inv) => inv.id}
+                        items={[
+                          ...investors.map(item => ({ ...item, source: "investor" as const })),
+                          ...clients.filter(item => item.accountId).map(item => ({ ...item, source: "client" as const }))
+                        ]}
+                        value={investorId ? `${investorSource}:${investorId}` : ""}
+                        onChange={(key) => { const [source, ...idParts] = key.split(":"); setInvestorSource(source === "client" ? "client" : "investor"); setInvestorId(idParts.join(":")); }}
+                        placeholder="Select investor or client..."
+                        searchPlaceholder="Search investor or client..."
+                        getSearchFields={(inv) => [inv.name, inv.phone, inv.source]}
+                        itemKey={(inv) => `${inv.source}:${inv.id}`}
                         dropdownWidthClassName="w-[300px] max-w-[calc(100vw-2rem)]"
                         renderTrigger={(selected) =>
                           selected ? (
-                            <span>{selected.name}</span>
+                            <span>{selected.name} <span className="text-xs text-slate-400">({selected.source === "client" ? "Client" : "Investor"})</span></span>
                           ) : (
-                            <span className="text-slate-400">Select investor...</span>
+                            <span className="text-slate-400">Select investor or client...</span>
                           )
                         }
                         renderItem={(inv) => (
                           <div className="flex flex-col text-left">
                             <span className="font-semibold text-slate-800">{inv.name}</span>
+                            <span className="text-xs text-purple-600">{inv.source === "client" ? "Client account" : "Investor"}</span>
                             {inv.phone && <span className="text-xs text-slate-400 font-mono mt-0.5">{inv.phone}</span>}
                           </div>
                         )}
