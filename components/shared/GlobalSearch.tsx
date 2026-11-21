@@ -31,6 +31,7 @@ const PAGE_LINKS: SearchResult[] = [
   { id: "p-delivery",      type: "page", label: "Delivery",             href: "/dashboard/delivery",            icon: Truck },
   { id: "p-clients",       type: "page", label: "Manage Clients",       href: "/dashboard/clients",             icon: UserCircle },
   { id: "p-accounts",      type: "page", label: "Manage Accounts",      href: "/dashboard/accounts",            icon: Wallet },
+  { id: "p-backup-investment", type: "page", label: "Backup Investment", href: "/dashboard/backup-investment", icon: Wallet },
   { id: "p-sale-inv",      type: "page", label: "Sale Invoice",         href: "/dashboard/sale-invoice",        icon: ShoppingCart },
   { id: "p-pur-inv",       type: "page", label: "Purchase Invoice",     href: "/dashboard/purchase-invoice",    icon: PackagePlus },
   { id: "p-pur-list",      type: "page", label: "Purchase Invoice List",href: "/dashboard/purchase-invoices",   icon: FileText },

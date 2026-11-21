@@ -89,7 +89,7 @@ export const GeneralLedgerManager = () => {
       const isNewFormat = !!v.cashAccountId;
       const vCodeStr = v.voucherNo ? v.voucherNo.toString() : "";
       // Preserve OB-/PI-/SI- prefixes; only pad plain numeric voucher numbers with CV-
-      const voucherCode = /^(OB-|PI-|SI-|JV-)/.test(vCodeStr)
+      const voucherCode = /^(OB-|PI-|SI-|JV-|BI-)/.test(vCodeStr)
         ? vCodeStr
         : `CV-${vCodeStr.padStart(4, "0")}`;
 

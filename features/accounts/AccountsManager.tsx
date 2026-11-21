@@ -3,9 +3,10 @@ import { useState, useEffect, useMemo, FormEvent } from "react";
 import { useCurrencyExchangeRate } from "@/hooks/useCurrencyExchangeRate";
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot,
-  query, orderBy, serverTimestamp, getDocs, where
+  query, orderBy, serverTimestamp, getDocs, where, setDoc
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getAccountInitialBalance, recalculateAccountBalance } from "@/features/accounts/recalculateAccountBalance";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,7 @@ interface Account {
   typeId: string;
   typeName: string;
   balance: number;
+  initialBalance?: number;
   description?: string;
   shopName?: string;
   fatherName?: string;
@@ -102,6 +104,9 @@ interface AccountType {
 
 export const AccountsManager = () => {
   const { user } = useAuth();
+  const [allowInitialBalanceEditing, setAllowInitialBalanceEditing] = useState(false);
+  const [updatingBalanceSetting, setUpdatingBalanceSetting] = useState(false);
+  const [balanceSettingMessage, setBalanceSettingMessage] = useState("");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -161,11 +166,35 @@ export const AccountsManager = () => {
       checkReady();
     });
 
+    const settingsRef = doc(db, "app-settings", "account-balance-editing");
+    const unsubSettings = onSnapshot(settingsRef, snapshot => {
+      setAllowInitialBalanceEditing(snapshot.exists() && snapshot.data().allowInitialBalanceEditing === true);
+    });
+
     return () => {
       unsubAccounts();
       unsubTypes();
+      unsubSettings();
     };
   }, []);
+
+  const toggleInitialBalanceEditing = async () => {
+    if (!user || updatingBalanceSetting) return;
+    const nextValue = !allowInitialBalanceEditing;
+    setUpdatingBalanceSetting(true);
+    setBalanceSettingMessage("");
+    try {
+      await setDoc(doc(db, "app-settings", "account-balance-editing"), {
+        allowInitialBalanceEditing: nextValue,
+        updatedBy: user.uid,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (error: any) {
+      setBalanceSettingMessage(`Error: ${error.message}`);
+    } finally {
+      setUpdatingBalanceSetting(false);
+    }
+  };
 
   const pkrAmount = useMemo(() => {
     const amount = parseFloat(currencyAmount);
@@ -192,12 +221,15 @@ export const AccountsManager = () => {
     setMessage("");
   };
 
-  const handleEdit = (account: Account) => {
-    const isCredit = account.balance < 0;
+  const handleEdit = async (account: Account) => {
+    const openingBalance = allowInitialBalanceEditing
+      ? await getAccountInitialBalance(account)
+      : account.balance;
+    const isCredit = openingBalance < 0;
     setFormData({
       name: account.name,
       typeId: account.typeId,
-      balance: Math.abs(account.balance).toString(),
+      balance: Math.abs(openingBalance).toString(),
       balanceType: isCredit ? "credit" : "debit",
       description: account.description || "",
       shopName: account.shopName || "",
@@ -290,6 +322,7 @@ export const AccountsManager = () => {
         typeId: formData.typeId,
         typeName: typeName,
         balance: finalBalance,
+        initialBalance: finalBalance,
         description: formData.description.trim(),
         shopName: requireNumberInfo ? formData.shopName.trim() : "",
         fatherName: requireNumberInfo ? formData.fatherName.trim() : "",
@@ -302,8 +335,12 @@ export const AccountsManager = () => {
       };
 
       if (isEditing) {
-        const { balance, ...updatePayload } = payload;
+        const { balance, initialBalance, ...updatePayload } = payload;
         await updateDoc(doc(db, "accounts", isEditing), updatePayload);
+        const existingAccount = accounts.find(account => account.id === isEditing);
+        if (allowInitialBalanceEditing && existingAccount && initialBalance !== undefined) {
+          await recalculateAccountBalance(existingAccount, initialBalance, user.uid);
+        }
 
         await addDoc(collection(db, "logs"), {
           action: `Updated account: ${formData.name}`,
@@ -412,7 +449,29 @@ export const AccountsManager = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto">
+    <div className="space-y-4">
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Allow Initial Balance Editing</h3>
+            <p className="text-xs text-slate-500">{allowInitialBalanceEditing ? "Account editors can change the initial balance." : "Initial balances for existing accounts are locked."}</p>
+            {balanceSettingMessage && <p className="mt-1 text-xs text-red-600">{balanceSettingMessage}</p>}
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={allowInitialBalanceEditing}
+            aria-label="Allow Initial Balance Editing"
+            disabled={updatingBalanceSetting}
+            onClick={toggleInitialBalanceEditing}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:cursor-wait disabled:opacity-60 ${allowInitialBalanceEditing ? "bg-emerald-600" : "bg-slate-300"}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${allowInitialBalanceEditing ? "translate-x-6" : "translate-x-1"}`} />
+          </button>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto">
       {/* Left: Form */}
       <Card className="p-6 h-fit">
         <div className="flex items-center justify-between mb-4">
@@ -613,9 +672,9 @@ export const AccountsManager = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
+            {(!isEditing || allowInitialBalanceEditing) && <div className="space-y-2">
               <label className="text-xs font-medium text-slate-500 block">
-                Initial Balance / Current Balance
+                {isEditing ? "Initial Balance" : "Initial Balance / Current Balance"}
               </label>
               <div className="flex gap-2">
                 <Input
@@ -626,12 +685,10 @@ export const AccountsManager = () => {
                   onChange={e => setFormData({ ...formData, balance: e.target.value })}
                   placeholder="0.00"
                   className="flex-1"
-                  disabled={!!isEditing}
                 />
                 <Select
                   value={formData.balanceType}
                   onValueChange={(val) => setFormData(prev => ({ ...prev, balanceType: val }))}
-                  disabled={!!isEditing}
                 >
                   <SelectTrigger className="w-[120px] bg-white">
                     <SelectValue placeholder="Type" />
@@ -642,12 +699,22 @@ export const AccountsManager = () => {
                   </SelectContent>
                 </Select>
               </div>
-              {!!isEditing && (
-                <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
-                  <AlertTriangle size={12} /> Balance cannot be edited. Please use Vouchers to adjust the balance.
-                </p>
-              )}
-            </div>
+              {!!isEditing && allowInitialBalanceEditing && <p className="text-[10px] text-slate-500 mt-1">Saving a new initial balance recalculates this account’s running and current balances. Transactions remain unchanged.</p>}
+            </div>}
+            {!!isEditing && !allowInitialBalanceEditing && <div className="space-y-2">
+              <label className="text-xs font-medium text-slate-500 block">Initial Balance / Current Balance</label>
+              <div className="flex gap-2">
+                <Input type="number" value={formData.balance} readOnly disabled className="flex-1" />
+                <Select value={formData.balanceType} disabled>
+                  <SelectTrigger className="w-[120px] bg-white"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="debit">Debit (Dr)</SelectItem>
+                    <SelectItem value="credit">Credit (Cr)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1"><AlertTriangle size={12} /> Balance cannot be edited. Please use Vouchers to adjust the balance.</p>
+            </div>}
 
             <div className="space-y-2">
               <label className="text-xs font-medium text-slate-500">
@@ -760,6 +827,7 @@ export const AccountsManager = () => {
           )}
         </div>
       </Card>
+      </div>
     </div>
   );
 };

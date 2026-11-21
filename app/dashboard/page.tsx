@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState, useMemo } from "react";
 import {
-  collection, query, orderBy, limit, onSnapshot, Timestamp, getDocs, where
+  collection, query, orderBy, limit, onSnapshot, Timestamp, getDocs, where, doc
 } from "firebase/firestore";
 import {
   Car, CheckCircle2, AlertTriangle, TrendingUp, Activity, FileText,
@@ -115,6 +115,7 @@ export default function DashboardPage() {
   const [accounts, setAccounts]       = useState<AccountData[]>([]);
   const [inventory, setInventory]     = useState<InventoryItem[]>([]);
   const [inventoryValue, setInventoryValue] = useState(0);
+  const [backupInvestmentBalance, setBackupInvestmentBalance] = useState(0);
   const [vouchers, setVouchers]       = useState<VoucherData[]>([]);
   const [activeMetric, setActiveMetric] = useState<MetricKey>("bank");
   const [loading, setLoading]         = useState(true);
@@ -134,6 +135,10 @@ export default function DashboardPage() {
 
     unsubs.push(onSnapshot(collection(db, "accounts"), snap => {
       setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() } as AccountData)));
+    }));
+
+    unsubs.push(onSnapshot(doc(db, "backup-investment", "main"), snap => {
+      setBackupInvestmentBalance(snap.exists() ? Number(snap.data().balance) || 0 : 0);
     }));
 
     unsubs.push(onSnapshot(query(collection(db, "vouchers"), orderBy("date", "desc"), limit(500)), snap => {
@@ -399,6 +404,18 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Dynamic Charts ── */}
+        <Link href="/dashboard/backup-investment" className="block">
+          <Card className="border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 transition-all hover:-translate-y-0.5 hover:shadow-md">
+            <CardContent className="flex items-center justify-between gap-4 p-5">
+              <div className="flex items-center gap-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><Landmark size={21} /></div>
+                <div><p className="text-xs font-bold uppercase tracking-widest text-emerald-800">Backup Investment</p><p className="mt-1 text-2xl font-extrabold text-slate-900">{fmt(backupInvestmentBalance)}</p></div>
+              </div>
+              <span className="text-sm font-semibold text-emerald-700">View balance &amp; history <ArrowRight size={15} className="ml-1 inline" /></span>
+            </CardContent>
+          </Card>
+        </Link>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Pie */}

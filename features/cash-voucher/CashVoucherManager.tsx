@@ -530,6 +530,7 @@ export const CashVoucherManager = () => {
   const filteredVouchers = useMemo(() => {
     const term = searchTerm.toLowerCase();
     return vouchers.filter(v => {
+      if ((v as any).isBackupInvestmentTransfer) return false;
       const cashName = (v.cashAccountName || v.accountName || "").toLowerCase();
       const counterName = (v.counterAccountName || "").toLowerCase();
       const matchesSearch = cashName.includes(term) || counterName.includes(term) ||

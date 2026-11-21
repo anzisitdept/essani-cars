@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect, FormEvent } from "react";
 import {
-  collection, updateDoc, doc, onSnapshot,
+  collection, updateDoc, doc, onSnapshot, deleteField,
   query, orderBy, serverTimestamp, addDoc, getDocs, where
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getAccountInitialBalance, recalculateAccountBalance } from "@/features/accounts/recalculateAccountBalance";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ interface BankAccount {
   typeId: string;
   typeName: string;
   balance: number;
+  initialBalance?: number;
   description?: string;
   accountNumber?: string;
   iban?: string;
@@ -35,6 +37,7 @@ interface BankAccount {
 
 export const BanksManager = () => {
   const { user } = useAuth();
+  const [allowInitialBalanceEditing, setAllowInitialBalanceEditing] = useState(false);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [bankTypeId, setBankTypeId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -77,18 +80,23 @@ export const BanksManager = () => {
     fetchBankTypeId();
   }, []);
 
+  useEffect(() => onSnapshot(doc(db, "app-settings", "account-balance-editing"), snapshot => {
+    setAllowInitialBalanceEditing(snapshot.exists() && snapshot.data().allowInitialBalanceEditing === true);
+  }), []);
+
   // 2) Once bankTypeId is known, subscribe to bank accounts
   useEffect(() => {
     if (bankTypeId === null) return;
 
     const q = query(
       collection(db, "accounts"),
-      where("typeId", "==", bankTypeId),
-      orderBy("name")
+      where("typeId", "==", bankTypeId)
     );
 
     const unsub = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BankAccount));
+      const data = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as BankAccount))
+        .sort((a, b) => a.name.localeCompare(b.name));
       setAccounts(data);
       setDataLoading(false);
     }, (err) => {
@@ -122,12 +130,15 @@ export const BanksManager = () => {
     setMessage("");
   };
 
-  const handleEdit = (account: BankAccount) => {
-    const isCredit = account.balance < 0;
+  const handleEdit = async (account: BankAccount) => {
+    const openingBalance = allowInitialBalanceEditing
+      ? await getAccountInitialBalance(account)
+      : account.balance;
+    const isCredit = openingBalance < 0;
     setFormData({
       name: account.name,
       typeId: account.typeId,
-      balance: Math.abs(account.balance).toString(),
+      balance: Math.abs(openingBalance).toString(),
       balanceType: isCredit ? "credit" : "debit",
       description: account.description || "",
       accountNumber: account.accountNumber || "",
@@ -152,7 +163,7 @@ export const BanksManager = () => {
       const payload = {
         name: formData.name.trim(),
         typeId: formData.typeId,
-        balance: finalBalance,
+        ...(!allowInitialBalanceEditing ? { balance: finalBalance, initialBalance: deleteField() } : {}),
         description: formData.description.trim(),
         accountNumber: formData.accountNumber.trim(),
         iban: formData.iban.trim(),
@@ -162,6 +173,10 @@ export const BanksManager = () => {
       };
 
       await updateDoc(doc(db, "accounts", isEditing), payload);
+      const existingAccount = accounts.find(account => account.id === isEditing);
+      if (allowInitialBalanceEditing && existingAccount) {
+        await recalculateAccountBalance(existingAccount, finalBalance, user.uid);
+      }
 
       await addDoc(collection(db, "logs"), {
         action: `Updated bank account: ${formData.name}`,
@@ -269,7 +284,7 @@ export const BanksManager = () => {
 
             <div className="space-y-2">
               <label className="text-xs font-medium text-slate-500 block">
-                Initial Balance / Current Balance
+                {allowInitialBalanceEditing ? "Initial Balance" : "Initial Balance / Current Balance"}
               </label>
               <div className="flex gap-2">
                 <Input
@@ -294,6 +309,7 @@ export const BanksManager = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {allowInitialBalanceEditing && <p className="text-[10px] text-slate-500">Saving a new initial balance recalculates running balances and the current balance.</p>}
             </div>
 
             <div className="space-y-2">
