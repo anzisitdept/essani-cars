@@ -123,8 +123,8 @@ export const SaleInvoiceManager = () => {
         let investorAccRef: any = null;
         let investorAccName = "";
         let investorAccBal = 0;
-        if (selectedVehicle.hasInvestor && selectedVehicle.investorId && commissionAmount > 0) {
-          const investorDocRef = doc(db, "investors", selectedVehicle.investorId);
+        if (selectedVehicle.hasInvestor && selectedVehicle.investorPaid !== false && selectedVehicle.investorId && commissionAmount > 0) {
+          const investorDocRef = doc(db, selectedVehicle.investorSource === "client" ? "clients" : "investors", selectedVehicle.investorId);
           const investorDocSnap = await tx.get(investorDocRef);
           if (!investorDocSnap.exists()) throw new Error("Investor profile not found.");
           const investorAccountId = investorDocSnap.data().accountId;
@@ -255,7 +255,8 @@ export const SaleInvoiceManager = () => {
           buyerName: buyerName.trim() || null,
           buyerPhone: buyerPhone.trim() || null,
           saleAccountId: receivingAccountId,
-          commissionPaid: commissionAmount,
+          commissionPaid: investorAccRef ? commissionAmount : 0,
+          investorProfitHeld: selectedVehicle.hasInvestor && selectedVehicle.investorPaid === false ? commissionAmount : 0,
           netProfit: profit - commissionAmount,
           currentStatus: "SOLD",
           updatedAt: serverTimestamp()

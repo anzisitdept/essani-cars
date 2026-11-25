@@ -49,6 +49,7 @@ export const PurchaseInvoiceManager = () => {
   const [investorId, setInvestorId] = useState("");
   const [commissionType, setCommissionType] = useState<"Fixed" | "Percentage">("Percentage");
   const [commissionValue, setCommissionValue] = useState("");
+  const [investorPaid, setInvestorPaid] = useState(true);
   const [selectedSellerId, setSelectedSellerId] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
 
@@ -113,18 +114,33 @@ export const PurchaseInvoiceManager = () => {
           await tx.get(vehicleAccRef);
         }
 
+        const contribution = Number(car.investorCapitalContribution) || 0;
+        let investorAccRef: any = null;
+        let investorAccSnap: any = null;
+        if (contribution > 0 && car.investorId) {
+          const profile = await tx.get(doc(db, car.investorSource === "client" ? "clients" : "investors", car.investorId));
+          if (!profile.exists() || !profile.data().accountId) throw new Error("Restore the investor ledger link before reversing this purchase.");
+          investorAccRef = doc(db, "accounts", profile.data().accountId);
+          investorAccSnap = await tx.get(investorAccRef);
+        }
+
         // WRITE PHASE
         if (payAccRef && !payAccSnap?.exists()) throw new Error("Restore the missing payment/seller ledger before reversing this purchase.");
         voucherRefs.forEach(ref => tx.delete(ref));
 
         if (payAccRef && payAccSnap?.exists()) {
           const prevBal = payAccSnap.data().balance || 0;
-          const restoredBal = prevBal + Number(car.purchasePrice);
+          const restoredBal = prevBal + Number(car.purchasePrice) - contribution;
           tx.update(payAccRef, {
             balance: restoredBal,
             updatedAt: serverTimestamp(),
             updatedBy: user.uid
           });
+        }
+
+        if (contribution > 0 && investorAccRef) {
+          if (!investorAccSnap?.exists()) throw new Error("Restore the missing investor ledger before reversing this purchase.");
+          tx.update(investorAccRef, { balance: (Number(investorAccSnap.data().balance) || 0) + contribution, updatedAt: serverTimestamp(), updatedBy: user.uid });
         }
 
         if (vehicleAccRef) {
@@ -148,6 +164,8 @@ export const PurchaseInvoiceManager = () => {
           investorName: null,
           commissionType: null,
           commissionValue: 0,
+          investorCapitalContribution: 0,
+          investorPaid: true,
           purchaseReversedAt: serverTimestamp(),
           purchaseReversedBy: user.uid
         });
@@ -226,6 +244,7 @@ export const PurchaseInvoiceManager = () => {
       setInvestorSource(v.investorSource === "client" ? "client" : "investor");
       setCommissionType(v.commissionType || "Percentage");
       setCommissionValue(v.commissionValue ? v.commissionValue.toString() : "");
+      setInvestorPaid(v.investorPaid ?? true);
       setSelectedSellerId(v.sellerClientId || "");
     } else {
       setPurchasePrice("");
@@ -236,6 +255,7 @@ export const PurchaseInvoiceManager = () => {
       setInvestorSource("investor");
       setCommissionType("Percentage");
       setCommissionValue("");
+      setInvestorPaid(true);
       setSelectedSellerId("");
     }
     setMessage("");
@@ -254,6 +274,8 @@ export const PurchaseInvoiceManager = () => {
     if (isPaid && !paymentAccountId) { setMessage("Error: Please select a payment account."); return; }
     if (!isPaid && !selectedSellerId) { setMessage("Error: Please select a seller for an unpaid purchase."); return; }
     if (hasInvestor && !investorId) { setMessage("Error: Please select an investor."); return; }
+    if (hasInvestor && commissionType !== "Percentage") { setMessage("Error: Investor purchase share requires a percentage."); return; }
+    if (hasInvestor && (commVal <= 0 || commVal > 100)) { setMessage("Error: Investor share must be between 0 and 100%."); return; }
 
     setLoading(true);
     setMessage("");
@@ -283,6 +305,21 @@ export const PurchaseInvoiceManager = () => {
         let paymentAccSnap: any = null;
         let clientAccSnap: any = null;
         let clientSnap: any = null;
+        let investorAccSnap: any = null;
+        let investorAccRef: any = null;
+        let investorAccId = "";
+        const investorShare = hasInvestor ? Math.round(priceVal * commVal / 100) : 0;
+
+        if (hasInvestor) {
+          const investorProfile = await tx.get(doc(db, investorSource === "client" ? "clients" : "investors", investorId));
+          if (!investorProfile.exists()) throw new Error("Investor profile not found.");
+          investorAccId = investorProfile.data().accountId || "";
+          if (!investorAccId) throw new Error("Investor has no linked ledger account.");
+          investorAccRef = doc(db, "accounts", investorAccId);
+          investorAccSnap = await tx.get(investorAccRef);
+          if (!investorAccSnap.exists()) throw new Error("Investor ledger account not found.");
+          if (isPaid && paymentAccountId === investorAccId) throw new Error("Choose a payment account different from the investor account.");
+        }
 
         if (isPaid && paymentAccountId) {
           const ref = doc(db, "accounts", paymentAccountId);
@@ -298,6 +335,7 @@ export const PurchaseInvoiceManager = () => {
           if (!clientData.accountId) {
             throw new Error(`Seller "${clientData.name}" has no linked ledger account. Please link a ledger account before creating the invoice.`);
           }
+          if (hasInvestor && clientData.accountId === investorAccId) throw new Error("The investor account cannot also be selected as the seller account.");
           const cAccRef = doc(db, "accounts", clientData.accountId);
           clientAccSnap = await tx.get(cAccRef);
           if (!clientAccSnap.exists()) {
@@ -346,7 +384,8 @@ export const PurchaseInvoiceManager = () => {
         if (isPaid && paymentAccSnap) {
           const payAccRef = doc(db, "accounts", paymentAccountId);
           const payPrevBal = paymentAccSnap.data().balance || 0;
-          const payNewBal = payPrevBal - priceVal;          // cash goes OUT → credit
+          const ownerShare = priceVal - investorShare;
+          const payNewBal = payPrevBal - ownerShare;          // owner cash pays its share
           const payName = paymentAccSnap.data().name;
           const vehicleNewBal = priceVal;                   // asset goes IN → debit
 
@@ -361,9 +400,9 @@ export const PurchaseInvoiceManager = () => {
             voucherNo: "PI-" + Math.floor(100000 + Math.random() * 900000),
             date: invoiceDate,
             description: `Purchase Invoice: ${selectedVehicle.brandName} ${selectedVehicle.model} — Chassis: ${selectedVehicle.chassisNumber}`,
-            amount: priceVal,
+            amount: ownerShare,
             debit: 0,
-            credit: priceVal,
+            credit: ownerShare,
             // Cash leg (money leaves cash account → credit)
             cashAccountId: paymentAccountId,
             cashAccountName: payName,
@@ -388,13 +427,32 @@ export const PurchaseInvoiceManager = () => {
             createdBy: user.uid
           });
 
+          if (investorShare > 0 && investorAccRef && investorAccSnap) {
+            const invPrev = Number(investorAccSnap.data().balance) || 0;
+            const invNext = invPrev - investorShare;
+            tx.update(investorAccRef, { balance: invNext, updatedAt: serverTimestamp(), updatedBy: user.uid });
+            tx.set(doc(collection(db, "vouchers")), {
+              voucherNo: "PI-" + Math.floor(100000 + Math.random() * 900000), date: invoiceDate,
+              description: `Investor capital contribution (${commVal}%) — ${selectedVehicle.brandName} ${selectedVehicle.model}`,
+              amount: investorShare, debit: 0, credit: investorShare,
+              cashAccountId: investorAccId, cashAccountName: investorAccSnap.data().name, cashType: "credit",
+              cashPreviousBalance: invPrev, cashNewBalance: invNext,
+              counterAccountId: vehicleAccountId, counterAccountName: vehicleAccName, counterType: "debit",
+              counterPreviousBalance: vehiclePrevBal, counterNewBalance: vehicleNewBal,
+              accountId: investorAccId, accountName: investorAccSnap.data().name, type: "credit",
+              previousBalance: invPrev, newBalance: invNext, vehicleId: selectedVehicle.id,
+              invoiceType: "PURCHASE", purchaseEntryType: "INVESTOR_CAPITAL", createdAt: serverTimestamp(), createdBy: user.uid
+            });
+          }
+
         } else if (clientSnap && clientAccSnap) {
           // ── UNPAID: Seller/Client Payable (credit) ↔ Vehicle Asset (debit) ──
           const clientData = clientSnap.data();
           const clientAccId = clientData.accountId;
           const cAccRef = doc(db, "accounts", clientAccId);
           const cPrevBal = clientAccSnap.data().balance || 0;
-          const cNewBal = cPrevBal - priceVal;              // payable increases (credit)
+          const sellerPayable = priceVal - investorShare;
+          const cNewBal = cPrevBal - sellerPayable;              // payable increases (credit)
           const cName = clientAccSnap.data().name;
           const vehicleNewBal = priceVal;
 
@@ -408,9 +466,9 @@ export const PurchaseInvoiceManager = () => {
             voucherNo: "PI-" + Math.floor(100000 + Math.random() * 900000),
             date: invoiceDate,
             description: `Purchase Invoice (Unpaid) — payable to ${clientData.name} for ${selectedVehicle.brandName} ${selectedVehicle.model} · Chassis: ${selectedVehicle.chassisNumber}`,
-            amount: priceVal,
+            amount: sellerPayable,
             debit: 0,
-            credit: priceVal,
+            credit: sellerPayable,
             // Seller account leg (credit — we owe them)
             cashAccountId: clientAccId,
             cashAccountName: cName,
@@ -434,6 +492,24 @@ export const PurchaseInvoiceManager = () => {
             createdAt: serverTimestamp(),
             createdBy: user.uid
           });
+
+          if (investorShare > 0 && investorAccRef && investorAccSnap) {
+            const invPrev = Number(investorAccSnap.data().balance) || 0;
+            const invNext = invPrev - investorShare;
+            tx.update(investorAccRef, { balance: invNext, updatedAt: serverTimestamp(), updatedBy: user.uid });
+            tx.set(doc(collection(db, "vouchers")), {
+              voucherNo: "PI-" + Math.floor(100000 + Math.random() * 900000), date: invoiceDate,
+              description: `Investor capital contribution (${commVal}%) — ${selectedVehicle.brandName} ${selectedVehicle.model}`,
+              amount: investorShare, debit: 0, credit: investorShare,
+              cashAccountId: investorAccId, cashAccountName: investorAccSnap.data().name, cashType: "credit",
+              cashPreviousBalance: invPrev, cashNewBalance: invNext,
+              counterAccountId: vehicleAccountId, counterAccountName: vehicleAccName, counterType: "debit",
+              counterPreviousBalance: vehiclePrevBal, counterNewBalance: vehicleNewBal,
+              accountId: investorAccId, accountName: investorAccSnap.data().name, type: "credit",
+              previousBalance: invPrev, newBalance: invNext, vehicleId: selectedVehicle.id,
+              invoiceType: "PURCHASE", purchaseEntryType: "INVESTOR_CAPITAL", createdAt: serverTimestamp(), createdBy: user.uid
+            });
+          }
 
         } else {
           // ── NO PAYMENT / NO SELLER: write a standalone asset debit voucher ──
@@ -473,7 +549,7 @@ export const PurchaseInvoiceManager = () => {
           purchasePrice: priceVal,
           isPaid,
           purchasePaidAtCreation: isPaid,
-          purchasePaidAmount: isPaid ? priceVal : 0,
+          purchasePaidAmount: isPaid ? priceVal : investorShare,
           sellerAccountId: clientSnap?.data()?.accountId || null,
           paymentAccountId: isPaid ? paymentAccountId : null,
           sellerClientId: selectedSellerId || null,
@@ -485,6 +561,8 @@ export const PurchaseInvoiceManager = () => {
           investorSource: hasInvestor ? investorSource : null,
           commissionType: hasInvestor ? commissionType : null,
           commissionValue: hasInvestor ? commVal : 0,
+          investorCapitalContribution: investorShare,
+          investorPaid,
           vehicleAccountId,
           capitalizedCost: priceVal,
           totalExpenses: selectedVehicle.totalExpenses || 0,
@@ -608,6 +686,7 @@ export const PurchaseInvoiceManager = () => {
                 {selectedVehicle.purchasePrice > 0 && (
                   <InfoRow label="Existing Purchase Price" value={`Rs. ${Number(selectedVehicle.purchasePrice).toLocaleString()}`} />
                 )}
+
               </div>
             </div>
           )}
@@ -787,20 +866,12 @@ export const PurchaseInvoiceManager = () => {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-500">Commission Type</label>
-                      <Select value={commissionType} onValueChange={v => setCommissionType(v as "Fixed" | "Percentage")}>
-                        <SelectTrigger className="bg-white h-10">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Percentage">Percentage (%)</SelectItem>
-                          <SelectItem value="Fixed">Fixed Amount</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <label className="text-xs font-semibold text-slate-500">Investor Share Type</label>
+                      <div className="h-10 flex items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">Percentage (%)</div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-slate-500">
-                        Commission {commissionType === "Percentage" ? "(%)" : "(PKR)"}
+                        Investor Share {commissionType === "Percentage" ? "(%)" : "(PKR)"}
                       </label>
                       <Input
                         type="number"
@@ -810,6 +881,15 @@ export const PurchaseInvoiceManager = () => {
                         className="h-10"
                       />
                     </div>
+                  </div>
+                )}
+                {hasInvestor && (
+                  <div className="flex items-center gap-4 p-3.5 bg-emerald-50 rounded-xl border border-emerald-100">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={investorPaid} onChange={e => setInvestorPaid(e.target.checked)} />
+                      <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                      <span className="ml-3 text-sm font-semibold text-slate-700">Investor Paid (transfer profit on sale)</span>
+                    </label>
                   </div>
                 )}
               </div>
@@ -844,9 +924,9 @@ export const PurchaseInvoiceManager = () => {
                     })()}
                     {hasInvestor && investorId && (
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Investor Commission</span>
+                        <span className="text-slate-500">Investor Share</span>
                         <span className="font-semibold text-purple-700">
-                          {commissionType === "Percentage" ? `${commVal}% of profit` : `Rs. ${commVal.toLocaleString()}`}
+                          {commissionType === "Percentage" ? `${commVal}% · Rs. ${Math.round(priceVal * commVal / 100).toLocaleString()} capital, same share of profit` : `Rs. ${commVal.toLocaleString()}`}
                         </span>
                       </div>
                     )}

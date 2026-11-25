@@ -3,6 +3,7 @@ export interface PurchasePaymentState {
   isPaid?: boolean;
   purchasePaidAtCreation?: boolean;
   purchasePaidAmount?: number;
+  investorCapitalContribution?: number;
 }
 
 export function purchasePaidAmount(invoice: PurchasePaymentState): number {
@@ -26,7 +27,8 @@ export function adjustPurchasePayment(invoice: PurchasePaymentState, delta: numb
 }
 
 export function canReversePurchase(invoice: PurchasePaymentState): boolean {
-  return (invoice.purchasePaidAtCreation ?? invoice.isPaid) || purchasePaidAmount(invoice) === 0;
+  return (invoice.purchasePaidAtCreation ?? invoice.isPaid)
+    || purchasePaidAmount(invoice) <= (Number(invoice.investorCapitalContribution) || 0);
 }
 
 export function isClientPayable(account: { typeName?: string; name?: string; balance?: number }): boolean {

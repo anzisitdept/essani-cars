@@ -362,6 +362,16 @@ export function PurchaseInventoryList() {
           await tx.get(vehicleAccRef); // must read before delete in transaction
         }
 
+        const contribution = Number(car.investorCapitalContribution) || 0;
+        let investorAccRef: any = null;
+        let investorAccSnap: any = null;
+        if (contribution > 0 && car.investorId) {
+          const profile = await tx.get(doc(db, car.investorSource === "client" ? "clients" : "investors", car.investorId));
+          if (!profile.exists() || !profile.data().accountId) throw new Error("Restore the investor ledger link before reversing this purchase.");
+          investorAccRef = doc(db, "accounts", profile.data().accountId);
+          investorAccSnap = await tx.get(investorAccRef);
+        }
+
         // WRITE PHASE
         if (payAccRef && !payAccSnap?.exists()) throw new Error("Restore the missing payment/seller ledger before reversing this purchase.");
 
@@ -371,12 +381,17 @@ export function PurchaseInventoryList() {
         // Reverse payment / seller account balance
         if (payAccRef && payAccSnap?.exists()) {
           const prevBal = payAccSnap.data().balance || 0;
-          const restoredBal = prevBal + Number(car.purchasePrice); // add back what was debited/credited
+          const restoredBal = prevBal + Number(car.purchasePrice) - contribution; // restore only the owner's share
           tx.update(payAccRef, {
             balance: restoredBal,
             updatedAt: serverTimestamp(),
             updatedBy: user.uid
           });
+        }
+
+        if (contribution > 0 && investorAccRef) {
+          if (!investorAccSnap?.exists()) throw new Error("Restore the missing investor ledger before reversing this purchase.");
+          tx.update(investorAccRef, { balance: (Number(investorAccSnap.data().balance) || 0) + contribution, updatedAt: serverTimestamp(), updatedBy: user.uid });
         }
 
         // Delete vehicle ledger account
@@ -402,6 +417,8 @@ export function PurchaseInventoryList() {
           investorName: null,
           commissionType: null,
           commissionValue: 0,
+          investorCapitalContribution: 0,
+          investorPaid: true,
           purchaseReversedAt: serverTimestamp(),
           purchaseReversedBy: user.uid
         });
